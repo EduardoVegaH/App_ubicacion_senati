@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "173122852515",
+    "project_id": "appubicacionsenati",
+    "storage_bucket": "appubicacionsenati.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:173122852515:android:c8c26a2bd40447387d1116",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDZcLPTCx1DuTM_fBG6HX8gfJTH__Ny-M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
