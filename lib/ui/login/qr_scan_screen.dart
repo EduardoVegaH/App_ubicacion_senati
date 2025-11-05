@@ -200,17 +200,20 @@ class _HexagonLogo extends StatelessWidget {
     return SizedBox(
       width: 80,
       height: 80,
-      child: Stack(
-        children: [
-          CustomPaint(
-            size: const Size(80, 80),
-            painter: _HexagonPainter(),
-          ),
-          CustomPaint(
-            size: const Size(80, 80),
-            painter: _StyledSPainter(),
-          ),
-        ],
+      child: ClipRect(
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            CustomPaint(
+              size: const Size(80, 80),
+              painter: _HexagonPainter(),
+            ),
+            CustomPaint(
+              size: const Size(80, 80),
+              painter: _StyledSPainter(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -219,9 +222,13 @@ class _HexagonLogo extends StatelessWidget {
 class _HexagonPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
+    // Clipping para evitar artefactos fuera del área
+    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    
     final paint = Paint()
       ..color = const Color(0xFF1976D2)
-      ..style = PaintingStyle.fill;
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
 
     final path = Path();
     final center = Offset(size.width / 2, size.height / 2);
@@ -251,12 +258,16 @@ class _HexagonPainter extends CustomPainter {
 class _StyledSPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
+    // Clipping para evitar artefactos fuera del área
+    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    
     final paint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+      ..strokeJoin = StrokeJoin.round
+      ..isAntiAlias = true;
 
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width * 0.28;
