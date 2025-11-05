@@ -27,7 +27,7 @@ android {
         applicationId = "com.example.flutter_application_1"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21  // Android 5.0 (Lollipop) - mínimo compatible
+        minSdk = flutter.minSdkVersion  // Android 5.0 (Lollipop) - mínimo compatible
         targetSdk = 36  // Android 16 (Baklava)
         versionCode = flutter.versionCode
         versionName = flutter.versionName

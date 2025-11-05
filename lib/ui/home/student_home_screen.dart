@@ -123,7 +123,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     final isLargePhone = isPixel7Pro || (screenWidth >= 400 && !isTablet);
     
     return Scaffold(
-      backgroundColor: const Color(0xFF2C2C2C),
+      backgroundColor: Colors.white, // Fondo blanco en lugar de oscuro
       body: SafeArea(
         child: Column(
           children: [
@@ -133,8 +133,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               decoration: const BoxDecoration(
                 color: Color(0xFF1976D2),
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
+                  bottomLeft: Radius.circular(0), // Sin bordes redondeados
+                  bottomRight: Radius.circular(0),
                 ),
               ),
               padding: EdgeInsets.symmetric(horizontal: padding, vertical: 12),
@@ -250,13 +250,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Tarjeta de Información Académica
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: EdgeInsets.all(isLargePhone ? 24 : (isTablet ? 28 : 20)),
+                      // Sección de Información Académica - Sin tarjeta flotante
+                      Padding(
+                        padding: EdgeInsets.only(bottom: isLargePhone ? 24 : (isTablet ? 28 : 20)),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -295,57 +291,60 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         ),
                       ),
 
-                      SizedBox(height: isTablet ? 20 : 16),
+                      // Divider
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.grey[300],
+                      ),
 
-                      // Tarjeta de Cursos Programados
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: EdgeInsets.all(isLargePhone ? 24 : (isTablet ? 28 : 20)),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Título con icono y fecha
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.access_time,
-                                  color: const Color(0xFF1976D2),
-                                  size: isLargePhone ? 26 : (isTablet ? 28 : 24),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Cursos Programados Hoy',
-                                  style: TextStyle(
-                                    fontSize: isLargePhone ? 20 : (isTablet ? 22 : 18),
-                                    fontWeight: FontWeight.bold,
-                                    color: const Color(0xFF2C2C2C),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: isLargePhone ? 10 : (isTablet ? 12 : 8)),
-                            Text(
-                              _getCurrentDate(),
-                              style: TextStyle(
-                                fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
-                                color: const Color(0xFF757575),
+                      SizedBox(height: isLargePhone ? 24 : (isTablet ? 28 : 20)),
+
+                      // Sección de Cursos Programados - Sin tarjeta flotante
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Título con icono y fecha
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                color: const Color(0xFF1976D2),
+                                size: isLargePhone ? 26 : (isTablet ? 28 : 24),
                               ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Cursos Programados Hoy',
+                                style: TextStyle(
+                                  fontSize: isLargePhone ? 20 : (isTablet ? 22 : 18),
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF2C2C2C),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: isLargePhone ? 10 : (isTablet ? 12 : 8)),
+                          Text(
+                            _getCurrentDate(),
+                            style: TextStyle(
+                              fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
+                              color: const Color(0xFF757575),
                             ),
-                            SizedBox(height: isLargePhone ? 22 : (isTablet ? 24 : 20)),
-                            // Lista de cursos
-                            ...student.coursesToday.asMap().entries.map((entry) {
-                              final index = entry.key;
-                              final course = entry.value;
-                              return Padding(
-                                padding: EdgeInsets.only(bottom: isLargePhone ? 18 : (isTablet ? 20 : 16)),
-                                child: _buildCourseCard(course, index, isLargePhone, isTablet),
-                              );
-                            }),
-                            // Información adicional
-                            Container(
+                          ),
+                          SizedBox(height: isLargePhone ? 22 : (isTablet ? 24 : 20)),
+                          // Lista de cursos
+                          ...student.coursesToday.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final course = entry.value;
+                            return Padding(
+                              padding: EdgeInsets.only(bottom: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+                              child: _buildCourseCard(course, index, isLargePhone, isTablet),
+                            );
+                          }),
+                          // Información adicional
+                          Padding(
+                            padding: EdgeInsets.only(top: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+                            child: Container(
                               padding: EdgeInsets.all(isLargePhone ? 18 : (isTablet ? 20 : 16)),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF5F5F5),
@@ -384,8 +383,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                                 ],
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -433,8 +432,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFE0E0E0)),
-        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
+        borderRadius: BorderRadius.circular(12),
       ),
       padding: EdgeInsets.all(isLargePhone ? 18 : (isTablet ? 20 : 16)),
       child: Column(
