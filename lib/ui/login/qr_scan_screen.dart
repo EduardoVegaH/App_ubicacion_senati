@@ -44,12 +44,14 @@ class QRScanScreen extends StatelessWidget {
                     ),
                   ),
                   // Logo "S" estilizado
-                  SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: CustomPaint(
-                      painter: _SmallStyledSPainter(),
-                      size: const Size(32, 32),
+                  ClipRect(
+                    child: SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: CustomPaint(
+                        painter: _SmallStyledSPainter(),
+                        size: const Size(32, 32),
+                      ),
                     ),
                   ),
                 ],
@@ -58,17 +60,21 @@ class QRScanScreen extends StatelessWidget {
             
             // Contenido principal
             Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                  child: Container(
-                    width: double.infinity,
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(left: 20, right: 20, top: 0, bottom: 20),
+                child: Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(0),
+                      topRight: Radius.circular(0),
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+                  ),
+                  padding: const EdgeInsets.only(left: 32, right: 32, top: 24, bottom: 40),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -180,7 +186,6 @@ class QRScanScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                  ),
                 ),
               ),
             ),
@@ -324,12 +329,16 @@ class _StyledSPainter extends CustomPainter {
 class _SmallStyledSPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
+    // Clipping para evitar artefactos fuera del área
+    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    
     final paint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+      ..strokeJoin = StrokeJoin.round
+      ..isAntiAlias = true;
 
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width * 0.28;

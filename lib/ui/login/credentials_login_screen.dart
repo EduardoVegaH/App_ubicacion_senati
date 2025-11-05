@@ -62,12 +62,14 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                     ),
                   ),
                   // Logo "S" estilizado
-                  SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: CustomPaint(
-                      painter: _SmallStyledSPainter(),
-                      size: const Size(32, 32),
+                  ClipRect(
+                    child: SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: CustomPaint(
+                        painter: _SmallStyledSPainter(),
+                        size: const Size(32, 32),
+                      ),
                     ),
                   ),
                 ],
@@ -86,7 +88,7 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -94,7 +96,7 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                         // Logo hexagonal azul con "S"
                         const Center(child: _HexagonLogo()),
                         
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
                         
                         // Título "Ingresa tus credenciales"
                         const Text(
@@ -107,7 +109,7 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                           ),
                         ),
                         
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 28),
                         
                         // Campo ID de Estudiante
                         const Text(
@@ -128,12 +130,24 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                             prefixIcon: const Icon(Icons.person, color: Color(0xFF757575)),
                           ),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Color(0xFF2C2C2C),
+                          ),
                         ),
                         
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 18),
                         
                         // Campo Contraseña
                         const Text(
@@ -155,6 +169,14 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                             prefixIcon: const Icon(Icons.lock, color: Color(0xFF757575)),
                             suffixIcon: IconButton(
@@ -168,6 +190,10 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                                 });
                               },
                             ),
+                          ),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Color(0xFF2C2C2C),
                           ),
                         ),
                         
@@ -195,7 +221,7 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                           ),
                         ),
                         
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
                         
                         // Botón "Iniciar Sesión"
                         SizedBox(
@@ -227,7 +253,7 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                           ),
                         ),
                         
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         
                         // Opción "Escanear QR en su lugar"
                         InkWell(
@@ -243,10 +269,10 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.qr_code_scanner,
                                   size: 20,
-                                  color: const Color(0xFF2C2C2C),
+                                  color: Color(0xFF2C2C2C),
                                 ),
                                 const SizedBox(width: 8),
                                 const Text(
@@ -406,12 +432,16 @@ class _StyledSPainter extends CustomPainter {
 class _SmallStyledSPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
+    // Clipping para evitar artefactos fuera del área
+    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
+    
     final paint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+      ..strokeJoin = StrokeJoin.round
+      ..isAntiAlias = true;
 
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width * 0.28;
