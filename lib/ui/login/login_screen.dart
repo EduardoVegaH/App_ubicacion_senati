@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 import 'credentials_login_screen.dart';
 import 'qr_scan_screen.dart';
 
@@ -25,8 +24,13 @@ class LoginScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Logo hexagonal azul con "S"
-                  _HexagonLogo(),
+                  // Logo SENATI
+                  Image.asset(
+                    'assets/senatilogo.png',
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.contain,
+                  ),
                   
                   const SizedBox(height: 24),
                   
@@ -70,7 +74,7 @@ class LoginScreen extends StatelessWidget {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1976D2),
+                        backgroundColor: const Color(0xFF1B38E3),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -103,9 +107,9 @@ class LoginScreen extends StatelessWidget {
                         );
                       },
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF1976D2),
+                        foregroundColor: const Color(0xFF1B38E3),
                         side: const BorderSide(
-                          color: Color(0xFF1976D2),
+                          color: Color(0xFF1B38E3),
                           width: 2,
                         ),
                         shape: RoundedRectangleBorder(
@@ -133,7 +137,7 @@ class LoginScreen extends StatelessWidget {
                         width: 20,
                         height: 20,
                         decoration: const BoxDecoration(
-                          color: Color(0xFF1976D2),
+                          color: Color(0xFF1B38E3),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -165,132 +169,5 @@ class LoginScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-// Widget para el logo hexagonal con "S"
-class _HexagonLogo extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 80,
-      height: 80,
-      child: ClipRect(
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            CustomPaint(
-              size: const Size(80, 80),
-              painter: _HexagonPainter(),
-            ),
-            CustomPaint(
-              size: const Size(80, 80),
-              painter: _StyledSPainter(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HexagonPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Clipping para evitar artefactos fuera del área
-    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
-    
-    final paint = Paint()
-      ..color = const Color(0xFF1976D2)
-      ..style = PaintingStyle.fill
-      ..isAntiAlias = true;
-
-    final path = Path();
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    // Dibujar hexágono
-    for (int i = 0; i < 6; i++) {
-      final angle = (math.pi / 3) * i - math.pi / 2;
-      final x = center.dx + radius * math.cos(angle);
-      final y = center.dy + radius * math.sin(angle);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
-}
-
-// Painter para la "S" estilizada con líneas curvas entrelazadas
-class _StyledSPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Clipping para evitar artefactos fuera del área
-    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
-    
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..isAntiAlias = true;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width * 0.28;
-
-    // Curva superior de la S (entrelazada)
-    final path1 = Path();
-    path1.moveTo(center.dx - radius * 0.7, center.dy - radius * 0.6);
-    path1.cubicTo(
-      center.dx - radius * 0.4,
-      center.dy - radius * 0.9,
-      center.dx + radius * 0.1,
-      center.dy - radius * 0.9,
-      center.dx + radius * 0.4,
-      center.dy - radius * 0.6,
-    );
-    path1.cubicTo(
-      center.dx + radius * 0.65,
-      center.dy - radius * 0.3,
-      center.dx + radius * 0.65,
-      center.dy,
-      center.dx + radius * 0.4,
-      center.dy + radius * 0.2,
-    );
-
-    // Curva inferior de la S (entrelazada)
-    final path2 = Path();
-    path2.moveTo(center.dx + radius * 0.7, center.dy + radius * 0.6);
-    path2.cubicTo(
-      center.dx + radius * 0.4,
-      center.dy + radius * 0.9,
-      center.dx - radius * 0.1,
-      center.dy + radius * 0.9,
-      center.dx - radius * 0.4,
-      center.dy + radius * 0.6,
-    );
-    path2.cubicTo(
-      center.dx - radius * 0.65,
-      center.dy + radius * 0.3,
-      center.dx - radius * 0.65,
-      center.dy,
-      center.dx - radius * 0.4,
-      center.dy - radius * 0.2,
-    );
-
-    canvas.drawPath(path1, paint);
-    canvas.drawPath(path2, paint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 

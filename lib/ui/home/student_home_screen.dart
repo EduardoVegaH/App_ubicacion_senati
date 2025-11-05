@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 import '../../models/student_model.dart';
 import '../login/qr_scan_screen.dart';
 
@@ -110,7 +109,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     final screenSize = MediaQuery.of(context).size;
     final screenWidth = screenSize.width;
     final screenHeight = screenSize.height;
-    final pixelRatio = MediaQuery.of(context).devicePixelRatio;
     
     // Detección específica para Pixel 7 Pro (1440 x 3120, ~6.7")
     // En densidad lógica, esto es aproximadamente 412 x 892 dp
@@ -131,7 +129,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             Container(
               width: double.infinity,
               decoration: const BoxDecoration(
-                color: Color(0xFF1976D2),
+                color: Color(0xFF1B38E3),
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(0), // Sin bordes redondeados
                   bottomRight: Radius.circular(0),
@@ -224,7 +222,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                               child: Text(
                                 student.semester,
                                 style: TextStyle(
-                                  color: const Color(0xFF1976D2),
+                                  color: const Color(0xFF1B38E3),
                                   fontSize: isLargePhone ? 13 : (isTablet ? 14 : 12),
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -261,7 +259,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                               children: [
                                 Icon(
                                   Icons.school,
-                                  color: const Color(0xFF1976D2),
+                                  color: const Color(0xFF1B38E3),
                                   size: isLargePhone ? 26 : (isTablet ? 28 : 24),
                                 ),
                                 const SizedBox(width: 8),
@@ -309,7 +307,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                             children: [
                               Icon(
                                 Icons.access_time,
-                                color: const Color(0xFF1976D2),
+                                color: const Color(0xFF1B38E3),
                                 size: isLargePhone ? 26 : (isTablet ? 28 : 24),
                               ),
                               const SizedBox(width: 8),
@@ -356,7 +354,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                                     children: [
                                       Icon(
                                         Icons.location_on,
-                                        color: const Color(0xFF1976D2),
+                                        color: const Color(0xFF1B38E3),
                                         size: isLargePhone ? 21 : (isTablet ? 22 : 20),
                                       ),
                                       const SizedBox(width: 8),
@@ -597,7 +595,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 });
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1976D2),
+                backgroundColor: const Color(0xFF1B38E3),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -712,65 +710,5 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       ),
     );
   }
-}
-
-// Painter para el logo "S" pequeño en la barra superior (si se necesita)
-class _SmallStyledSPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width * 0.28;
-
-    final path1 = Path();
-    path1.moveTo(center.dx - radius * 0.7, center.dy - radius * 0.6);
-    path1.cubicTo(
-      center.dx - radius * 0.4,
-      center.dy - radius * 0.9,
-      center.dx + radius * 0.1,
-      center.dy - radius * 0.9,
-      center.dx + radius * 0.4,
-      center.dy - radius * 0.6,
-    );
-    path1.cubicTo(
-      center.dx + radius * 0.65,
-      center.dy - radius * 0.3,
-      center.dx + radius * 0.65,
-      center.dy,
-      center.dx + radius * 0.4,
-      center.dy + radius * 0.2,
-    );
-
-    final path2 = Path();
-    path2.moveTo(center.dx + radius * 0.7, center.dy + radius * 0.6);
-    path2.cubicTo(
-      center.dx + radius * 0.4,
-      center.dy + radius * 0.9,
-      center.dx - radius * 0.1,
-      center.dy + radius * 0.9,
-      center.dx - radius * 0.4,
-      center.dy + radius * 0.6,
-    );
-    path2.cubicTo(
-      center.dx - radius * 0.65,
-      center.dy + radius * 0.3,
-      center.dx - radius * 0.65,
-      center.dy,
-      center.dx - radius * 0.4,
-      center.dy - radius * 0.2,
-    );
-
-    canvas.drawPath(path1, paint);
-    canvas.drawPath(path2, paint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
