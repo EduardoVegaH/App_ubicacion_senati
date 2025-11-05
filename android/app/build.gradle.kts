@@ -10,16 +10,16 @@ plugins {
 
 android {
     namespace = "com.example.flutter_application_1"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36  // Android 16 (Baklava)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -27,10 +27,13 @@ android {
         applicationId = "com.example.flutter_application_1"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 21  // Android 5.0 (Lollipop) - mínimo compatible
+        targetSdk = 36  // Android 16 (Baklava)
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // Optimización para diferentes densidades de pantalla
+        multiDexEnabled = true
     }
 
     buildTypes {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/firebase_service.dart';
+import 'ui/login/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,12 +22,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'App Ubicación SENATI',
       debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        appBar: AppBar(title: Text('Prueba Firebase')),
-        body: Center(
-          child: Text('✅ Conexión con Firebase verificada'),
-        ),
-      ),
+      home: const LoginScreen(),
     );
   }
 }
