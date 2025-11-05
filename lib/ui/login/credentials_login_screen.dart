@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'qr_scan_screen.dart';
 import '../home/student_home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import '../../../services/auth_service.dart';
 
 class CredentialsLoginScreen extends StatefulWidget {
   const CredentialsLoginScreen({super.key});
@@ -11,13 +14,16 @@ class CredentialsLoginScreen extends StatefulWidget {
 
 class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
   bool _obscurePassword = true;
-  final TextEditingController _studentIdController = TextEditingController(text: '001596669');
-  final TextEditingController _passwordController = TextEditingController();
+  final _auth = AuthService();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool _loading = false;
 
   @override
   void dispose() {
-    _studentIdController.dispose();
-    _passwordController.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
     super.dispose();
   }
 
@@ -70,7 +76,7 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                 ],
               ),
             ),
-            
+
             // Contenido principal
             Expanded(
               child: Center(
@@ -83,7 +89,10 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 32,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -97,9 +106,9 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                             fit: BoxFit.contain,
                           ),
                         ),
-                        
+
                         const SizedBox(height: 20),
-                        
+
                         // Título "Ingresa tus credenciales"
                         const Text(
                           'Ingresa tus credenciales',
@@ -110,9 +119,9 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                             color: Color(0xFF2C2C2C),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 28),
-                        
+
                         // Campo ID de Estudiante
                         const Text(
                           'ID de Estudiante',
@@ -124,7 +133,7 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                         ),
                         const SizedBox(height: 8),
                         TextField(
-                          controller: _studentIdController,
+                          controller: _emailCtrl,
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: const Color(0xFFF5F5F5),
@@ -140,17 +149,23 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            prefixIcon: const Icon(Icons.person, color: Color(0xFF757575)),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.person,
+                              color: Color(0xFF757575),
+                            ),
                           ),
                           style: const TextStyle(
                             fontSize: 15,
                             color: Color(0xFF2C2C2C),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 18),
-                        
+
                         // Campo Contraseña
                         const Text(
                           'Contraseña',
@@ -162,7 +177,7 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                         ),
                         const SizedBox(height: 8),
                         TextField(
-                          controller: _passwordController,
+                          controller: _passCtrl,
                           obscureText: _obscurePassword,
                           decoration: InputDecoration(
                             filled: true,
@@ -179,11 +194,19 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            prefixIcon: const Icon(Icons.lock, color: Color(0xFF757575)),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.lock,
+                              color: Color(0xFF757575),
+                            ),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                _obscurePassword
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
                                 color: const Color(0xFF757575),
                               ),
                               onPressed: () {
@@ -198,9 +221,9 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                             color: Color(0xFF2C2C2C),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 8),
-                        
+
                         // Link "¿Olvidaste tu contraseña?"
                         Align(
                           alignment: Alignment.centerRight,
@@ -222,21 +245,45 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                             ),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 20),
-                        
+
                         // Botón "Iniciar Sesión"
                         SizedBox(
                           width: double.infinity,
                           height: 50,
                           child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (context) => const StudentHomeScreen(),
-                                ),
-                              );
+                            onPressed: () async {
+                              setState(() => _loading = true);
+
+                              try {
+                                await _auth.login(
+                                  email: _emailCtrl.text.trim(),
+                                  password: _passCtrl.text.trim(),
+                                );
+
+                                if (mounted) {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const StudentHomeScreen(),
+                                    ),
+                                  );
+                                }
+                              } on FirebaseAuthException catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      e.message ?? 'Error al iniciar sesión',
+                                    ),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              } finally {
+                                if (mounted) setState(() => _loading = false);
+                              }
                             },
+
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF1B38E3),
                               foregroundColor: Colors.white,
@@ -245,18 +292,22 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                               ),
                               elevation: 0,
                             ),
-                            child: const Text(
-                              'Iniciar Sesión',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            child: _loading
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                : const Text(
+                                    'Iniciar Sesión',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 12),
-                        
+
                         // Opción "Escanear QR en su lugar"
                         InkWell(
                           onTap: () {
@@ -300,4 +351,3 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
     );
   }
 }
-
