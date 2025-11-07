@@ -11,8 +11,6 @@ void main() async {
   );
 
   // Prueba de conexión:
-  await FirebaseService().addTestData();
-
   runApp(MyApp());
 }
 

@@ -1,12 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class FirebaseService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+class AuthService{
+  final _auth = FirebaseAuth.instance;
+  final _db = FirebaseFirestore.instance;
 
-  Future<void> addTestData() async {
-    await _db.collection('test').add({
-      'mensaje': 'Hola desde Flutter 👋',
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+  //Obtener los datos del usuario autenticado
+  Future<Map<String, dynamic>?> getUserData() async {
+    final user = _auth.currentUser;
+    if(user == null) return null;
+
+    final doc = await _db.collection('usuarios').doc(user.uid).get();
+    if(doc.exists){
+      return doc.data();
+    } else {
+      return null;
+    }
   }
 }

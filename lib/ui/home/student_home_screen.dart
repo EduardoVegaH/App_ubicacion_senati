@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/student_model.dart';
 import '../login/qr_scan_screen.dart';
+import '../../services/firebase_service.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   const StudentHomeScreen({super.key});
@@ -10,70 +11,110 @@ class StudentHomeScreen extends StatefulWidget {
 }
 
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
-  // Datos de ejemplo del estudiante
-  final Student student = Student(
-    name: 'SEBASTIAN RICARDO EFREN LAN',
-    id: '001596669',
-    semester: '5to Semestre',
-    photoUrl: '', // Se usará un placeholder
-    zonalAddress: 'Independencia',
-    school: 'ETI - Escuela de Tecnologías e Información',
-    career: 'Desarrollo de Software',
-    institutionalEmail: '1596669@senati.pe',
-    coursesToday: [
-      Course(
-        name: 'SEMINARIO COMPLEMENT PRÁCTI',
-        type: 'Seminario',
-        startTime: '7:00 AM',
-        endTime: '10:00 AM',
-        duration: '7:00 AM - 10:00 AM',
-        teacher: 'MANSILLA NEYRA, JUAN RAMON',
-        locationCode: 'IND - TORRE B 60TB - 200',
-        locationDetail: 'Torre B, Piso 2, Salón 200',
-      ),
-      Course(
-        name: 'SEMINARIO COMPLEMENT PRÁCTI',
-        type: 'Seminario',
-        startTime: '10:15 AM',
-        endTime: '1:15 PM',
-        duration: '10:15 AM - 1:15 PM',
-        teacher: 'MANSILLA NEYRA, JUAN RAMON',
-        locationCode: 'IND - TORRE B 60TB - 200',
-        locationDetail: 'Torre B, Piso 2, Salón 200',
-      ),
-      Course(
-        name: 'DESARROLLO HUMANO',
-        type: 'Clase',
-        startTime: '2:00 PM',
-        endTime: '3:30 PM',
-        duration: '2:00 PM - 3:30 PM',
-        teacher: 'GONZALES LEON, JACQUELINE CORAL',
-        locationCode: 'IND - TORRE C 60TC - 604',
-        locationDetail: 'Torre C, Piso 6, Salón 604',
-      ),
-      Course(
-        name: 'REDES DE COMPUTADORAS',
-        type: 'Tecnológico',
-        startTime: '7:00 AM',
-        endTime: '9:15 AM',
-        duration: '7:00 AM - 9:15 AM',
-        teacher: 'MANSILLA NEYRA, JUAN RAMON',
-        locationCode: 'IND - TORRE A 60TA - 604',
-        locationDetail: 'Torre A, Piso 6, Salón 604',
-      ),
-    ],
-  );
+  final AuthService _authService = AuthService();
+  Student? student;
+  bool loading = true;
 
-  final Map<int, bool> _showMap = {}; // Para controlar qué curso muestra el mapa
+  @override
+  void initState() {
+    super.initState();
+    _loadStudentData();
+  }
+
+  // Datos de ejemplo del estudiante
+  Future<void> _loadStudentData() async {
+    final data = await _authService.getUserData();
+    if (data != null) {
+      setState(() {
+        student = Student(
+          //Simular carga datos
+          name: (data['NameEstudent'] ?? '').toString().toUpperCase(),
+          id: data['IdEstudiante'] ?? '',
+          semester: data['Semestre'] ?? '',
+          photoUrl: data['foto'] ?? '', // Se usará un placeholder
+          zonalAddress: data['Campus'] ?? '',
+          school: data['Escuela'] ?? '',
+          career: data['Carrera'] ?? '',
+          institutionalEmail: data['CorreoInstud'] ?? '',
+          coursesToday: [
+            Course(
+              name: 'SEMINARIO COMPLEMENT PRÁCTI',
+              type: 'Seminario',
+              startTime: '7:00 AM',
+              endTime: '10:00 AM',
+              duration: '7:00 AM - 10:00 AM',
+              teacher: 'MANSILLA NEYRA, JUAN RAMON',
+              locationCode: 'IND - TORRE B 60TB - 200',
+              locationDetail: 'Torre B, Piso 2, Salón 200',
+            ),
+            Course(
+              name: 'SEMINARIO COMPLEMENT PRÁCTI',
+              type: 'Seminario',
+              startTime: '10:15 AM',
+              endTime: '1:15 PM',
+              duration: '10:15 AM - 1:15 PM',
+              teacher: 'MANSILLA NEYRA, JUAN RAMON',
+              locationCode: 'IND - TORRE B 60TB - 200',
+              locationDetail: 'Torre B, Piso 2, Salón 200',
+            ),
+            Course(
+              name: 'DESARROLLO HUMANO',
+              type: 'Clase',
+              startTime: '2:00 PM',
+              endTime: '3:30 PM',
+              duration: '2:00 PM - 3:30 PM',
+              teacher: 'GONZALES LEON, JACQUELINE CORAL',
+              locationCode: 'IND - TORRE C 60TC - 604',
+              locationDetail: 'Torre C, Piso 6, Salón 604',
+            ),
+            Course(
+              name: 'REDES DE COMPUTADORAS',
+              type: 'Tecnológico',
+              startTime: '7:00 AM',
+              endTime: '9:15 AM',
+              duration: '7:00 AM - 9:15 AM',
+              teacher: 'MANSILLA NEYRA, JUAN RAMON',
+              locationCode: 'IND - TORRE A 60TA - 604',
+              locationDetail: 'Torre A, Piso 6, Salón 604',
+            ),
+          ],
+        );
+        loading = false;
+      });
+    } else {
+      setState(() {
+        loading = false;
+      });
+    }
+  }
+
+  final Map<int, bool> _showMap =
+      {}; // Para controlar qué curso muestra el mapa
 
   String _getCurrentDate() {
     final now = DateTime.now();
     final months = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
     ];
     final weekdays = [
-      'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+      'Domingo',
     ];
     return '${weekdays[now.weekday - 1]}, ${now.day} De ${months[now.month - 1]} De ${now.year}';
   }
@@ -109,17 +150,28 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     final screenSize = MediaQuery.of(context).size;
     final screenWidth = screenSize.width;
     final screenHeight = screenSize.height;
-    
+
     // Detección específica para Pixel 7 Pro (1440 x 3120, ~6.7")
-    // En densidad lógica, esto es aproximadamente 412 x 892 dp
-    final isPixel7Pro = screenWidth >= 400 && screenWidth <= 450 && 
-                        screenHeight >= 850 && screenHeight <= 950;
+    final isPixel7Pro =
+        screenWidth >= 400 &&
+        screenWidth <= 450 &&
+        screenHeight >= 850 &&
+        screenHeight <= 950;
     final isTablet = screenWidth > 600;
-    
+
     // Optimización específica para Pixel 7 Pro
     final padding = isPixel7Pro ? 20.0 : (isTablet ? 24.0 : 16.0);
     final isLargePhone = isPixel7Pro || (screenWidth >= 400 && !isTablet);
-    
+
+    // 👇 Aquí manejamos los estados de carga y datos
+    if (loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (student == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       backgroundColor: Colors.white, // Fondo blanco en lugar de oscuro
       body: SafeArea(
@@ -152,7 +204,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         },
                         child: Row(
                           children: [
-                            const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                            const Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Volver a escanear',
@@ -166,7 +222,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         ),
                       ),
                       // Icono de ojo/privacidad
-                      const Icon(Icons.visibility, color: Colors.white, size: 20),
+                      const Icon(
+                        Icons.visibility,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ],
                   ),
                   SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
@@ -181,13 +241,22 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                           shape: BoxShape.circle,
                           color: Colors.white,
                           border: Border.all(color: Colors.white, width: 2),
+                          image: student != null && student!.photoUrl.isNotEmpty
+                              ? DecorationImage(
+                                  image: NetworkImage(student!.photoUrl),
+                                  fit: BoxFit.cover,
+                                )
+                              : null, // Si no hay foto, se mostrará el ícono de persona
                         ),
-                        child: Icon(
-                          Icons.person,
-                          size: isLargePhone ? 42 : (isTablet ? 45 : 40),
-                          color: const Color(0xFF757575),
-                        ),
+                        child: (student == null || student!.photoUrl.isEmpty)
+                            ? Icon(
+                                Icons.person,
+                                size: isLargePhone ? 42 : (isTablet ? 45 : 40),
+                                color: const Color(0xFF757575),
+                              )
+                            : null,
                       ),
+
                       SizedBox(width: isLargePhone ? 14 : (isTablet ? 16 : 12)),
                       // Nombre, ID y Semestre
                       Expanded(
@@ -195,10 +264,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              student.name,
+                              student!.name,
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: isLargePhone ? 17 : (isTablet ? 18 : 16),
+                                fontSize: isLargePhone
+                                    ? 17
+                                    : (isTablet ? 18 : 16),
                                 fontWeight: FontWeight.bold,
                               ),
                               maxLines: 1,
@@ -206,24 +277,31 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'ID: ${student.id}',
+                              'ID: ${student!.id}',
                               style: TextStyle(
                                 color: Colors.white70,
-                                fontSize: isLargePhone ? 14 : (isTablet ? 15 : 13),
+                                fontSize: isLargePhone
+                                    ? 14
+                                    : (isTablet ? 15 : 13),
                               ),
                             ),
                             const SizedBox(height: 4),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                student.semester,
+                                student!.semester,
                                 style: TextStyle(
                                   color: const Color(0xFF1B38E3),
-                                  fontSize: isLargePhone ? 13 : (isTablet ? 14 : 12),
+                                  fontSize: isLargePhone
+                                      ? 13
+                                      : (isTablet ? 14 : 12),
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -250,7 +328,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     children: [
                       // Sección de Información Académica - Sin tarjeta flotante
                       Padding(
-                        padding: EdgeInsets.only(bottom: isLargePhone ? 24 : (isTablet ? 28 : 20)),
+                        padding: EdgeInsets.only(
+                          bottom: isLargePhone ? 24 : (isTablet ? 28 : 20),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -260,43 +340,73 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                                 Icon(
                                   Icons.school,
                                   color: const Color(0xFF1B38E3),
-                                  size: isLargePhone ? 26 : (isTablet ? 28 : 24),
+                                  size: isLargePhone
+                                      ? 26
+                                      : (isTablet ? 28 : 24),
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Información Académica',
                                   style: TextStyle(
-                                    fontSize: isLargePhone ? 20 : (isTablet ? 22 : 18),
+                                    fontSize: isLargePhone
+                                        ? 20
+                                        : (isTablet ? 22 : 18),
                                     fontWeight: FontWeight.bold,
                                     color: const Color(0xFF2C2C2C),
                                   ),
                                 ),
                               ],
                             ),
-                            SizedBox(height: isLargePhone ? 22 : (isTablet ? 24 : 20)),
+                            SizedBox(
+                              height: isLargePhone ? 22 : (isTablet ? 24 : 20),
+                            ),
                             // Dirección Zonal
-                            _buildInfoRow('Dirección Zonal', student.zonalAddress, isLargePhone, isTablet),
-                            SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+                            _buildInfoRow(
+                              'Dirección Zonal',
+                              student!.zonalAddress,
+                              isLargePhone,
+                              isTablet,
+                            ),
+                            SizedBox(
+                              height: isLargePhone ? 18 : (isTablet ? 20 : 16),
+                            ),
                             // Escuela
-                            _buildInfoRow('Escuela', student.school, isLargePhone, isTablet),
-                            SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+                            _buildInfoRow(
+                              'Escuela',
+                              student!.school,
+                              isLargePhone,
+                              isTablet,
+                            ),
+                            SizedBox(
+                              height: isLargePhone ? 18 : (isTablet ? 20 : 16),
+                            ),
                             // Carrera
-                            _buildInfoRow('Carrera', student.career, isLargePhone, isTablet),
-                            SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+                            _buildInfoRow(
+                              'Carrera',
+                              student!.career,
+                              isLargePhone,
+                              isTablet,
+                            ),
+                            SizedBox(
+                              height: isLargePhone ? 18 : (isTablet ? 20 : 16),
+                            ),
                             // Correo Institucional
-                            _buildInfoRow('Correo Institucional', student.institutionalEmail, isLargePhone, isTablet),
+                            _buildInfoRow(
+                              'Correo Institucional',
+                              student!.institutionalEmail,
+                              isLargePhone,
+                              isTablet,
+                            ),
                           ],
                         ),
                       ),
 
                       // Divider
-                      Divider(
-                        height: 1,
-                        thickness: 1,
-                        color: Colors.grey[300],
-                      ),
+                      Divider(height: 1, thickness: 1, color: Colors.grey[300]),
 
-                      SizedBox(height: isLargePhone ? 24 : (isTablet ? 28 : 20)),
+                      SizedBox(
+                        height: isLargePhone ? 24 : (isTablet ? 28 : 20),
+                      ),
 
                       // Sección de Cursos Programados - Sin tarjeta flotante
                       Column(
@@ -314,36 +424,57 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                               Text(
                                 'Cursos Programados Hoy',
                                 style: TextStyle(
-                                  fontSize: isLargePhone ? 20 : (isTablet ? 22 : 18),
+                                  fontSize: isLargePhone
+                                      ? 20
+                                      : (isTablet ? 22 : 18),
                                   fontWeight: FontWeight.bold,
                                   color: const Color(0xFF2C2C2C),
                                 ),
                               ),
                             ],
                           ),
-                          SizedBox(height: isLargePhone ? 10 : (isTablet ? 12 : 8)),
+                          SizedBox(
+                            height: isLargePhone ? 10 : (isTablet ? 12 : 8),
+                          ),
                           Text(
                             _getCurrentDate(),
                             style: TextStyle(
-                              fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
+                              fontSize: isLargePhone
+                                  ? 15
+                                  : (isTablet ? 16 : 14),
                               color: const Color(0xFF757575),
                             ),
                           ),
-                          SizedBox(height: isLargePhone ? 22 : (isTablet ? 24 : 20)),
+                          SizedBox(
+                            height: isLargePhone ? 22 : (isTablet ? 24 : 20),
+                          ),
                           // Lista de cursos
-                          ...student.coursesToday.asMap().entries.map((entry) {
+                          ...student!.coursesToday.asMap().entries.map((entry) {
                             final index = entry.key;
                             final course = entry.value;
                             return Padding(
-                              padding: EdgeInsets.only(bottom: isLargePhone ? 18 : (isTablet ? 20 : 16)),
-                              child: _buildCourseCard(course, index, isLargePhone, isTablet),
+                              padding: EdgeInsets.only(
+                                bottom: isLargePhone
+                                    ? 18
+                                    : (isTablet ? 20 : 16),
+                              ),
+                              child: _buildCourseCard(
+                                course,
+                                index,
+                                isLargePhone,
+                                isTablet,
+                              ),
                             );
                           }),
                           // Información adicional
                           Padding(
-                            padding: EdgeInsets.only(top: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+                            padding: EdgeInsets.only(
+                              top: isLargePhone ? 18 : (isTablet ? 20 : 16),
+                            ),
                             child: Container(
-                              padding: EdgeInsets.all(isLargePhone ? 18 : (isTablet ? 20 : 16)),
+                              padding: EdgeInsets.all(
+                                isLargePhone ? 18 : (isTablet ? 20 : 16),
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF5F5F5),
                                 borderRadius: BorderRadius.circular(12),
@@ -355,25 +486,35 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                                       Icon(
                                         Icons.location_on,
                                         color: const Color(0xFF1B38E3),
-                                        size: isLargePhone ? 21 : (isTablet ? 22 : 20),
+                                        size: isLargePhone
+                                            ? 21
+                                            : (isTablet ? 22 : 20),
                                       ),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
                                           'Presiona el botón "Ver Ubicación en Mapa" en cada curso para navegar al salón',
                                           style: TextStyle(
-                                            fontSize: isLargePhone ? 14 : (isTablet ? 15 : 13),
+                                            fontSize: isLargePhone
+                                                ? 14
+                                                : (isTablet ? 15 : 13),
                                             color: const Color(0xFF424242),
                                           ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                  SizedBox(height: isLargePhone ? 10 : (isTablet ? 12 : 8)),
+                                  SizedBox(
+                                    height: isLargePhone
+                                        ? 10
+                                        : (isTablet ? 12 : 8),
+                                  ),
                                   Text(
-                                    'Total de cursos hoy: ${student.coursesToday.length}',
+                                    'Total de cursos hoy: ${student!.coursesToday.length}',
                                     style: TextStyle(
-                                      fontSize: isLargePhone ? 14 : (isTablet ? 15 : 13),
+                                      fontSize: isLargePhone
+                                          ? 14
+                                          : (isTablet ? 15 : 13),
                                       fontWeight: FontWeight.bold,
                                       color: const Color(0xFF424242),
                                     ),
@@ -395,7 +536,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, bool isLargePhone, bool isTablet) {
+  Widget _buildInfoRow(
+    String label,
+    String value,
+    bool isLargePhone,
+    bool isTablet,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -424,7 +570,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  Widget _buildCourseCard(Course course, int index, bool isLargePhone, bool isTablet) {
+  Widget _buildCourseCard(
+    Course course,
+    int index,
+    bool isLargePhone,
+    bool isTablet,
+  ) {
     final showMap = _showMap[index] ?? false;
 
     return Container(
@@ -461,7 +612,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.book, size: isLargePhone ? 15 : (isTablet ? 16 : 14), color: const Color(0xFF424242)),
+                    Icon(
+                      Icons.book,
+                      size: isLargePhone ? 15 : (isTablet ? 16 : 14),
+                      color: const Color(0xFF424242),
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       course.type,
@@ -481,7 +636,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.access_time, size: isLargePhone ? 21 : (isTablet ? 22 : 20), color: const Color(0xFF757575)),
+              Icon(
+                Icons.access_time,
+                size: isLargePhone ? 21 : (isTablet ? 22 : 20),
+                color: const Color(0xFF757575),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -519,7 +678,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.person, size: isLargePhone ? 21 : (isTablet ? 22 : 20), color: const Color(0xFF757575)),
+              Icon(
+                Icons.person,
+                size: isLargePhone ? 21 : (isTablet ? 22 : 20),
+                color: const Color(0xFF757575),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -550,7 +713,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.location_on, size: isLargePhone ? 21 : (isTablet ? 22 : 20), color: const Color(0xFF757575)),
+              Icon(
+                Icons.location_on,
+                size: isLargePhone ? 21 : (isTablet ? 22 : 20),
+                color: const Color(0xFF757575),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -624,10 +791,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               child: Column(
                 children: [
                   Padding(
-                    padding: EdgeInsets.all(isLargePhone ? 14 : (isTablet ? 16 : 12)),
+                    padding: EdgeInsets.all(
+                      isLargePhone ? 14 : (isTablet ? 16 : 12),
+                    ),
                     child: Row(
                       children: [
-                        Icon(Icons.location_on, size: isLargePhone ? 21 : (isTablet ? 22 : 20), color: const Color(0xFF2C2C2C)),
+                        Icon(
+                          Icons.location_on,
+                          size: isLargePhone ? 21 : (isTablet ? 22 : 20),
+                          color: const Color(0xFF2C2C2C),
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Column(
@@ -636,7 +809,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                               Text(
                                 course.locationDetail,
                                 style: TextStyle(
-                                  fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
+                                  fontSize: isLargePhone
+                                      ? 15
+                                      : (isTablet ? 16 : 14),
                                   fontWeight: FontWeight.bold,
                                   color: const Color(0xFF2C2C2C),
                                 ),
@@ -644,7 +819,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                               Text(
                                 course.name,
                                 style: TextStyle(
-                                  fontSize: isLargePhone ? 12.5 : (isTablet ? 13 : 12),
+                                  fontSize: isLargePhone
+                                      ? 12.5
+                                      : (isTablet ? 13 : 12),
                                   color: const Color(0xFF757575),
                                 ),
                               ),
@@ -676,7 +853,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.all(isLargePhone ? 14 : (isTablet ? 16 : 12)),
+                    padding: EdgeInsets.all(
+                      isLargePhone ? 14 : (isTablet ? 16 : 12),
+                    ),
                     child: SizedBox(
                       width: double.infinity,
                       height: isLargePhone ? 48 : (isTablet ? 50 : 44),
@@ -711,4 +890,3 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 }
-
