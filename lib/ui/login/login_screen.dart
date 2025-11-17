@@ -127,6 +127,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                   ),
                   
+                  
                   const SizedBox(height: 32),
                   
                   // Texto informativo con icono

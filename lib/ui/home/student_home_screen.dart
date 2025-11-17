@@ -1,7 +1,18 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import '../../models/student_model.dart';
 import '../login/qr_scan_screen.dart';
 import '../../services/firebase_service.dart';
+import 'dart:async'; // Tiempo de espera
+import 'package:cloud_firestore/cloud_firestore.dart'; // firestore
+import 'package:firebase_auth/firebase_auth.dart'; // firebase auth
+import 'package:flutter_application_1/services/location_service.dart';
+
+class LatLng {
+  final double latitude;
+  final double longitude;
+  const LatLng(this.latitude, this.longitude);
+}
 
 class StudentHomeScreen extends StatefulWidget {
   const StudentHomeScreen({super.key});
@@ -14,11 +25,29 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   final AuthService _authService = AuthService();
   Student? student;
   bool loading = true;
+  late String userUid; // UID actual de FirebaseAuth
+  String campusStatus = "Desconocido"; // Texto: Dentro/Fuera del campus
+  Timer? gpsTimer; // Para el Timer periódico
+
+  //Polígono aproximado del campus SENATI INDEPENDENCIA
+  final List<LatLng> campusPolygon = const [
+    LatLng(-11.997005, -77.061355),
+    LatLng(-11.997510, -77.061050),
+    LatLng(-11.997950, -77.061660),
+    LatLng(-11.997430, -77.061950),
+  ];
 
   @override
   void initState() {
     super.initState();
+    //1) Obtiene el UID del usuario logueado
+    userUid = FirebaseAuth.instance.currentUser!.uid;
+    // 2) Carga los datos del estudiante
     _loadStudentData();
+    // 3) Activar el GPS automático cada 5 segundos
+    gpsTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _updateLocation();
+    });
   }
 
   // Datos de ejemplo del estudiante
@@ -88,6 +117,54 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     }
   }
 
+  bool pointInsideCampus(double lat, double lon) {
+    int intersectCount = 0;
+
+    for (int i = 0; i < campusPolygon.length - 1; i++) {
+      final p1 = campusPolygon[i];
+      final p2 = campusPolygon[i + 1];
+
+      if (((p1.longitude > lon) != (p2.longitude > lon)) &&
+          (lat <
+              (p2.latitude - p1.latitude) *
+                      (lon - p1.longitude) /
+                      (p2.longitude - p1.longitude) +
+                  p1.latitude)) {
+        intersectCount++;
+      }
+    }
+
+    return intersectCount % 2 == 1; // impar = dentro
+  }
+
+  Future<void> _updateLocation() async {
+    try {
+      // 1) Obtener posicion actual
+      final pos = await LocationService.getCurrentLocation();
+
+      // 2) Ver si está dentro del polígono del campus
+      final dentro = pointInsideCampus(pos.longitude, pos.latitude);
+
+      // 3) Actualizar texto en pantalla
+      setState(() {
+        campusStatus = dentro ? "Dentro del campus" : "Fuera del campus";
+      });
+
+      // 4) Guardar en Firestore en usuarios/<UID>
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(userUid)
+          .update({
+            'lat': pos.latitude,
+            'lon': pos.longitude,
+            'estado': campusStatus,
+            'timestamp': DateTime.now().toIso8601String(),
+          });
+    } catch (e) {
+      print("ERROR GPS: $e");
+    }
+  }
+
   final Map<int, bool> _showMap =
       {}; // Para controlar qué curso muestra el mapa
 
@@ -143,6 +220,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       default:
         return const Color(0xFF424242);
     }
+  }
+
+  @override
+  void dispose() {
+    gpsTimer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -233,28 +316,60 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   // Información del estudiante
                   Row(
                     children: [
-                      // Foto de perfil
-                      Container(
-                        width: isLargePhone ? 64 : (isTablet ? 70 : 60),
-                        height: isLargePhone ? 64 : (isTablet ? 70 : 60),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          border: Border.all(color: Colors.white, width: 2),
-                          image: student != null && student!.photoUrl.isNotEmpty
-                              ? DecorationImage(
-                                  image: NetworkImage(student!.photoUrl),
-                                  fit: BoxFit.cover,
-                                )
-                              : null, // Si no hay foto, se mostrará el ícono de persona
-                        ),
-                        child: (student == null || student!.photoUrl.isEmpty)
-                            ? Icon(
-                                Icons.person,
-                                size: isLargePhone ? 42 : (isTablet ? 45 : 40),
-                                color: const Color(0xFF757575),
-                              )
-                            : null,
+                      // Foto de perfil + estado
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: isLargePhone ? 64 : (isTablet ? 70 : 60),
+                            height: isLargePhone ? 64 : (isTablet ? 70 : 60),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                              border: Border.all(color: Colors.white, width: 2),
+                              image: student != null && student!.photoUrl.isNotEmpty
+                                  ? DecorationImage(
+                                      image: NetworkImage(student!.photoUrl),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null, // Si no hay foto, se mostrará el ícono de persona
+                            ),
+                            child: (student == null || student!.photoUrl.isEmpty)
+                                ? Icon(
+                                    Icons.person,
+                                    size: isLargePhone ? 42 : (isTablet ? 45 : 40),
+                                    color: const Color(0xFF757575),
+                                  )
+                                : null,
+                          ),
+                          // 🔥 ESTADO ABAJO DERECHA
+                          Positioned(
+                            bottom: -6,
+                            right: -6,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: campusStatus == "Dentro del campus"
+                                    ? Colors.green
+                                    : Colors.red,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                campusStatus == "Dentro del campus"
+                                    ? "Presente"
+                                    : "Ausente",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
 
                       SizedBox(width: isLargePhone ? 14 : (isTablet ? 16 : 12)),
