@@ -39,6 +39,13 @@ dependencies:
   #GPS
   geolocator: ^10.0.1
 
+  # Para parsear fechas y horas
+  intl: ^0.19.0
+
+  # Notificaciones locales
+  flutter_local_notifications: ^17.2.2
+  timezone: ^0.9.4
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -53,6 +60,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -94,3 +102,17 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Configuration for app launcher icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logoappsenati.png"
+  # Para Android Adaptive Icons:
+  # - La imagen debe ser idealmente 1024x1024 px
+  # - El contenido importante debe estar en el centro (zona segura de 512x512 px)
+  # - El fondo puede ser un color sólido
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/logoappsenati.png"
+  # Ajustes para evitar que el ícono se expanda demasiado
+  min_sdk_android: 21 # Android 5.0+
