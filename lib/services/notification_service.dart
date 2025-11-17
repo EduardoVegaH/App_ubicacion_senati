@@ -49,9 +49,9 @@ class NotificationService {
           
           if (androidPlugin != null) {
             final granted = await androidPlugin.requestNotificationsPermission();
-            print('🔔 Permiso de notificaciones: ${granted ? "CONCEDIDO" : "DENEGADO"}');
+            print('🔔 Permiso de notificaciones: ${granted == true ? "CONCEDIDO" : "DENEGADO"}');
             
-            if (!granted) {
+            if (granted != true) {
               print('⚠️ ADVERTENCIA: Los permisos de notificaciones no fueron concedidos');
             }
           }
@@ -109,7 +109,7 @@ class NotificationService {
       
       if (androidPlugin != null) {
         final granted = await androidPlugin.areNotificationsEnabled();
-        print('🔔 Estado de permisos de notificaciones: ${granted ? "HABILITADAS" : "DESHABILITADAS"}');
+        print('🔔 Estado de permisos de notificaciones: ${granted == true ? "HABILITADAS" : "DESHABILITADAS"}');
         return granted ?? false;
       }
       return true; // En iOS o si no hay plugin, asumimos que está bien

@@ -9,6 +9,7 @@ import 'package:flutter_application_1/services/location_service.dart';
 import 'package:flutter_application_1/services/notification_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'courses_list_screen.dart';
+import '../bathrooms/bathroom_status_screen.dart';
 
 class LatLng {
   final double latitude;
@@ -625,6 +626,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white, // Fondo blanco en lugar de oscuro
+      drawer: _buildDrawer(context, isLargePhone, isTablet),
       body: SafeArea(
         child: Column(
           children: [
@@ -646,50 +648,21 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               ),
               child: Column(
                 children: [
-                  // Botón Cerrar sesión (arriba a la izquierda, con flecha hacia la izquierda)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: InkWell(
-                      onTap: () async {
-                        try {
-                          await _authService.logout();
-                          if (mounted) {
-                            Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(
-                                builder: (context) => const LoginScreen(),
-                              ),
-                              (route) => false,
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error al cerrar sesión: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Cerrar sesión',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: isTablet ? 18 : 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                  // Icono de menú (arriba a la izquierda)
+                  Builder(
+                    builder: (context) => Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        onPressed: () {
+                          Scaffold.of(context).openDrawer();
+                        },
+                        icon: const Icon(
+                          Icons.menu,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
                     ),
                   ),
@@ -804,54 +777,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                                           ? 13
                                           : (isTablet ? 14 : 12),
                                       fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                const Spacer(), // Empuja el botón hacia la derecha
-                                // Botón Cursos (paralelo a la etiqueta, pegado al lateral derecho)
-                                InkWell(
-                                  onTap: () {
-                                    if (student != null) {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => CoursesListScreen(
-                                            courses: student!.coursesToday,
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  child: Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: isLargePhone ? 10 : (isTablet ? 12 : 8),
-                                      vertical: isLargePhone ? 6 : (isTablet ? 7 : 5),
-                                    ),
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: Colors.white.withOpacity(0.3),
-                                        width: 1.5,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.folder,
-                                          color: Colors.white,
-                                          size: 18 * 1.2, // 20% más grande (21.6)
-                                        ),
-                                        SizedBox(width: (isTablet ? 4 : 4) * 1.2),
-                                        Text(
-                                          'Cursos',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: (isTablet ? 15 : 13) * 1.2,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
                                     ),
                                   ),
                                 ),
@@ -1611,6 +1536,204 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       final months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
       return '${date.day} ${months[date.month - 1]}';
     }
+  }
+
+  // Construir el drawer lateral transparente
+  Widget _buildDrawer(BuildContext context, bool isLargePhone, bool isTablet) {
+    return Drawer(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.95),
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header del drawer
+              Container(
+                padding: EdgeInsets.all(isLargePhone ? 20 : (isTablet ? 24 : 16)),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1B38E3),
+                  borderRadius: BorderRadius.only(
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Menú',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isLargePhone ? 22 : (isTablet ? 24 : 20),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 20),
+              
+              // Opciones del menú
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isLargePhone ? 16 : (isTablet ? 20 : 14),
+                  ),
+                  children: [
+                    // Botón Baños
+                    _buildDrawerItem(
+                      context: context,
+                      icon: Icons.wc,
+                      title: 'Baños',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const BathroomStatusScreen(),
+                          ),
+                        );
+                      },
+                      isLargePhone: isLargePhone,
+                      isTablet: isTablet,
+                    ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Botón Cursos
+                    _buildDrawerItem(
+                      context: context,
+                      icon: Icons.folder,
+                      title: 'Cursos',
+                      onTap: () {
+                        Navigator.pop(context);
+                        if (student != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CoursesListScreen(
+                                courses: student!.coursesToday,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      isLargePhone: isLargePhone,
+                      isTablet: isTablet,
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Botón Cerrar Sesión
+              Container(
+                padding: EdgeInsets.all(isLargePhone ? 16 : (isTablet ? 20 : 14)),
+                child: _buildDrawerItem(
+                  context: context,
+                  icon: Icons.logout,
+                  title: 'Cerrar Sesión',
+                  onTap: () async {
+                    Navigator.pop(context);
+                    try {
+                      await _authService.logout();
+                      if (mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error al cerrar sesión: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  isLargePhone: isLargePhone,
+                  isTablet: isTablet,
+                  isLogout: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Construir item del drawer
+  Widget _buildDrawerItem({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    required bool isLargePhone,
+    required bool isTablet,
+    bool isLogout = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(isLargePhone ? 16 : (isTablet ? 18 : 14)),
+        decoration: BoxDecoration(
+          color: isLogout
+              ? const Color(0xFF622222).withOpacity(0.1)
+              : const Color(0xFF1B38E3).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isLogout
+                ? const Color(0xFF622222).withOpacity(0.3)
+                : const Color(0xFF1B38E3).withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isLogout ? const Color(0xFF622222) : const Color(0xFF1B38E3),
+              size: isLargePhone ? 24 : (isTablet ? 26 : 22),
+            ),
+            const SizedBox(width: 16),
+            Text(
+              title,
+              style: TextStyle(
+                color: isLogout ? const Color(0xFF622222) : const Color(0xFF2C2C2C),
+                fontSize: isLargePhone ? 16 : (isTablet ? 18 : 15),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: isLogout ? const Color(0xFF622222) : const Color(0xFF757575),
+              size: isLargePhone ? 16 : (isTablet ? 18 : 14),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
