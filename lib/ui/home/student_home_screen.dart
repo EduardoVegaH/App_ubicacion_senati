@@ -65,10 +65,22 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
   //Polígono aproximado del campus SENATI INDEPENDENCIA
   final List<LatLng> campusPolygon = const [
-    LatLng(-11.997005, -77.061355),
-    LatLng(-11.997510, -77.061050),
-    LatLng(-11.997950, -77.061660),
-    LatLng(-11.997430, -77.061950),
+    LatLng(-11.997982, -77.062461),
+    LatLng(-11.997751, -77.061253),
+    LatLng(-11.997523, -77.060133),
+    LatLng(-11.997359, -77.058693),
+    LatLng(-11.998306, -77.058565),
+    LatLng(-11.998931, -77.058429),
+    LatLng(-11.999843, -77.058283),
+    LatLng(-12.000013, -77.058421),
+    LatLng(-12.000218, -77.058479),
+    LatLng(-12.000402, -77.059963),
+    LatLng(-12.000665, -77.061691),
+    LatLng(-12.000668, -77.062109),
+    LatLng(-11.999955, -77.062196),
+    LatLng(-11.999600, -77.062255),
+    LatLng(-11.998928, -77.062383),
+    LatLng(-11.998417, -77.062422),
   ];
 
   @override
