@@ -10,6 +10,7 @@ import 'package:flutter_application_1/services/notification_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'courses_list_screen.dart';
 import '../bathrooms/bathroom_status_screen.dart';
+import 'friends_screen.dart';
 
 class LatLng {
   final double latitude;
@@ -655,149 +656,146 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               padding: EdgeInsets.only(
                 left: padding,
                 right: padding,
-                top: isLargePhone ? 16 : (isTablet ? 18 : 14),
-                bottom: 16,
+                top: isLargePhone ? 24 : (isTablet ? 28 : 20),
+                bottom: 20,
               ),
-              child: Column(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Icono de menú (arriba a la izquierda)
-                  Builder(
-                    builder: (context) => Align(
-                      alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        onPressed: () {
-                          Scaffold.of(context).openDrawer();
-                        },
-                        icon: const Icon(
-                          Icons.menu,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: isLargePhone ? 12 : (isTablet ? 14 : 10)),
-                  // Información del estudiante
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  // Foto de perfil + estado
+                  Stack(
+                    clipBehavior: Clip.none,
                     children: [
-                      // Foto de perfil + estado
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            width: isLargePhone ? 64 : (isTablet ? 70 : 60),
-                            height: isLargePhone ? 64 : (isTablet ? 70 : 60),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white,
-                              border: Border.all(color: Colors.white, width: 2),
-                              image: student != null && student!.photoUrl.isNotEmpty
-                                  ? DecorationImage(
-                                      image: NetworkImage(student!.photoUrl),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : null, // Si no hay foto, se mostrará el ícono de persona
-                            ),
-                            child: (student == null || student!.photoUrl.isEmpty)
-                                ? Icon(
-                                    Icons.person,
-                                    size: isLargePhone ? 42 : (isTablet ? 45 : 40),
-                                    color: const Color(0xFF757575),
-                                  )
-                                : null,
-                          ),
-                          // 🔥 ESTADO ABAJO DERECHA
-                          Positioned(
-                            bottom: -6,
-                            right: -6,
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: campusStatus == "Dentro del campus"
-                                    ? Colors.green
-                                    : Colors.red,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                campusStatus == "Dentro del campus"
-                                    ? "Presente"
-                                    : "Ausente",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                      Container(
+                        width: isLargePhone ? 64 : (isTablet ? 70 : 60),
+                        height: isLargePhone ? 64 : (isTablet ? 70 : 60),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          border: Border.all(color: Colors.white, width: 2),
+                          image: student != null && student!.photoUrl.isNotEmpty
+                              ? DecorationImage(
+                                  image: NetworkImage(student!.photoUrl),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: (student == null || student!.photoUrl.isEmpty)
+                            ? Icon(
+                                Icons.person,
+                                size: isLargePhone ? 42 : (isTablet ? 45 : 40),
+                                color: const Color(0xFF757575),
+                              )
+                            : null,
                       ),
-
-                      SizedBox(width: isLargePhone ? 14 : (isTablet ? 16 : 12)),
-                      // Nombre, ID y Semestre
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              student!.name,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: isLargePhone
-                                    ? 17
-                                    : (isTablet ? 18 : 16),
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                      // 🔥 ESTADO ABAJO DERECHA
+                      Positioned(
+                        bottom: -6,
+                        right: -6,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: campusStatus == "Dentro del campus"
+                                ? Colors.green
+                                : Colors.red,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            campusStatus == "Dentro del campus"
+                                ? "Presente"
+                                : "Ausente",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'ID: ${student!.id}',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: isLargePhone
-                                    ? 14
-                                    : (isTablet ? 15 : 13),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            // Fila con etiqueta de semestre y botón Cursos
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    student!.semester,
-                                    style: TextStyle(
-                                      color: const Color(0xFF1B38E3),
-                                      fontSize: isLargePhone
-                                          ? 13
-                                          : (isTablet ? 14 : 12),
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ],
+                  ),
+
+                  SizedBox(width: isLargePhone ? 14 : (isTablet ? 16 : 12)),
+                  // Nombre, ID y Semestre
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                student!.name,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isLargePhone
+                                      ? 17
+                                      : (isTablet ? 18 : 16),
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            SizedBox(width: isLargePhone ? 8 : (isTablet ? 10 : 6)),
+                            // Icono de menú (a la derecha, a la altura del nombre)
+                            Builder(
+                              builder: (context) => GestureDetector(
+                                onTap: () {
+                                  Scaffold.of(context).openDrawer();
+                                },
+                                child: Transform.translate(
+                                  offset: Offset(0, -2),
+                                  child: Icon(
+                                    Icons.menu,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: isLargePhone ? 6 : (isTablet ? 8 : 5)),
+                        Text(
+                          'ID: ${student!.id}',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: isLargePhone
+                                ? 14
+                                : (isTablet ? 15 : 13),
+                            height: 1.2,
+                          ),
+                        ),
+                        SizedBox(height: isLargePhone ? 8 : (isTablet ? 10 : 6)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            student!.semester,
+                            style: TextStyle(
+                              color: const Color(0xFF1B38E3),
+                              fontSize: isLargePhone
+                                  ? 13
+                                  : (isTablet ? 14 : 12),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1643,6 +1641,26 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                             ),
                           );
                         }
+                      },
+                      isLargePhone: isLargePhone,
+                      isTablet: isTablet,
+                    ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Botón Amigos
+                    _buildDrawerItem(
+                      context: context,
+                      icon: Icons.people,
+                      title: 'Amigos',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const FriendsScreen(),
+                          ),
+                        );
                       },
                       isLargePhone: isLargePhone,
                       isTablet: isTablet,
