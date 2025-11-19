@@ -11,6 +11,10 @@ import 'package:geolocator/geolocator.dart';
 import 'courses_list_screen.dart';
 import '../bathrooms/bathroom_status_screen.dart';
 import 'friends_screen.dart';
+import '../widgets/tower_map_viewer.dart';
+import '../navigation/navigation_map_screen.dart';
+import '../chatbot/chatbot_screen.dart';
+import '../widgets/floating_chatbot.dart';
 
 class LatLng {
   final double latitude;
@@ -640,7 +644,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     return Scaffold(
       backgroundColor: Colors.white, // Fondo blanco en lugar de oscuro
       drawer: _buildDrawer(context, isLargePhone, isTablet),
-      body: SafeArea(
+      body: Stack(
+        children: [
+          SafeArea(
         child: Column(
           children: [
             // Barra superior azul con información del estudiante
@@ -1018,6 +1024,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ),
           ],
         ),
+          ),
+          // Chatbot flotante
+          const FloatingChatbot(),
+        ],
       ),
     );
   }
@@ -1318,7 +1328,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             if (showMap) ...[
               SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
               Container(
-                height: isLargePhone ? 220 : (isTablet ? 250 : 200),
                 decoration: BoxDecoration(
                   border: Border.all(color: const Color(0xFFE0E0E0)),
                   borderRadius: BorderRadius.circular(12),
@@ -1367,26 +1376,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         ],
                       ),
                     ),
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE0E0E0),
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(12),
-                            bottomRight: Radius.circular(12),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Mapa de Google Maps\n(Integración pendiente)',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: const Color(0xFF757575),
-                              fontSize: isLargePhone ? 13 : 12,
-                            ),
-                          ),
-                        ),
-                      ),
+                    TowerMapViewer(
+                      height: isLargePhone ? 220 : (isTablet ? 250 : 200),
+                      showControls: true,
                     ),
                     Padding(
                       padding: EdgeInsets.all(
@@ -1397,7 +1389,15 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         height: isLargePhone ? 48 : (isTablet ? 50 : 44),
                         child: ElevatedButton.icon(
                           onPressed: () {
-                            // TODO: Implementar navegación con Google Maps
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => NavigationMapScreen(
+                                  locationName: course.name,
+                                  locationDetail: course.locationDetail,
+                                  initialView: 'interior', // Por defecto mostrar vista interior para navegación
+                                ),
+                              ),
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF3D79FF), // Azul celeste igual que "Presente"
@@ -1423,7 +1423,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ],
           ],
         ),
-    );
+      );
   }
 
   // Función para construir la etiqueta de estado de asistencia GPS
@@ -1659,6 +1659,26 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => const FriendsScreen(),
+                          ),
+                        );
+                      },
+                      isLargePhone: isLargePhone,
+                      isTablet: isTablet,
+                    ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Botón Asistente Virtual (Chatbot)
+                    _buildDrawerItem(
+                      context: context,
+                      icon: Icons.smart_toy,
+                      title: 'Asistente Virtual',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ChatbotScreen(),
                           ),
                         );
                       },

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../models/friend_model.dart';
 import '../../services/friends_service.dart';
+import '../widgets/tower_map_viewer.dart';
+import '../navigation/navigation_map_screen.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
@@ -568,7 +570,6 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 if (showMap) ...[
                   const SizedBox(height: 12),
                   Container(
-                    height: isLargePhone ? 200 : (isTablet ? 250 : 180),
                     decoration: BoxDecoration(
                       border: Border.all(color: const Color(0xFFE0E0E0)),
                       borderRadius: BorderRadius.circular(12),
@@ -611,26 +612,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
                             ],
                           ),
                         ),
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE0E0E0),
-                              borderRadius: const BorderRadius.only(
-                                bottomLeft: Radius.circular(12),
-                                bottomRight: Radius.circular(12),
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'Mapa de Google Maps\n(Integración pendiente)',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: const Color(0xFF757575),
-                                  fontSize: isLargePhone ? 12 : 11,
-                                ),
-                              ),
-                            ),
-                          ),
+                        TowerMapViewer(
+                          height: isLargePhone ? 200 : (isTablet ? 250 : 180),
+                          showControls: true,
                         ),
                         Padding(
                           padding: EdgeInsets.all(isLargePhone ? 12 : (isTablet ? 14 : 10)),
@@ -639,7 +623,15 @@ class _FriendsScreenState extends State<FriendsScreen> {
                             height: isLargePhone ? 44 : (isTablet ? 48 : 40),
                             child: ElevatedButton.icon(
                               onPressed: () {
-                                // TODO: Implementar navegación con Google Maps
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => NavigationMapScreen(
+                                      locationName: friend.name,
+                                      locationDetail: 'Lat: ${friend.latitude!.toStringAsFixed(6)}, Lon: ${friend.longitude!.toStringAsFixed(6)}',
+                                      initialView: 'interior', // Por defecto mostrar vista interior para navegación
+                                    ),
+                                  ),
+                                );
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF3D79FF),
