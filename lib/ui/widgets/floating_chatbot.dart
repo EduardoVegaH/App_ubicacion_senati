@@ -4,7 +4,9 @@ import '../../services/chatbot_service.dart';
 
 /// Widget de chatbot flotante con botón y chat desplegable
 class FloatingChatbot extends StatefulWidget {
-  const FloatingChatbot({super.key});
+  final Map<String, dynamic>? studentData; // Información del estudiante
+  
+  const FloatingChatbot({super.key, this.studentData});
 
   @override
   State<FloatingChatbot> createState() => _FloatingChatbotState();
@@ -21,12 +23,29 @@ class _FloatingChatbotState extends State<FloatingChatbot> {
   @override
   void initState() {
     super.initState();
-    // Mensaje de bienvenida
+    // Actualizar la información del estudiante en el servicio del chatbot
+    if (widget.studentData != null) {
+      _chatbotService.updateStudentData(widget.studentData);
+    }
+    // Mensaje de bienvenida personalizado
+    final studentName = widget.studentData?['NameEstudent'] ?? '';
+    final greeting = studentName.isNotEmpty 
+        ? '¡Hola ${studentName.split(' ').first}! Soy tu asistente virtual de SENATI. ¿En qué puedo ayudarte?'
+        : '¡Hola! Soy tu asistente virtual de SENATI. ¿En qué puedo ayudarte?';
     _messages.add(ChatMessage(
-      text: '¡Hola! Soy tu asistente virtual de SENATI. ¿En qué puedo ayudarte?',
+      text: greeting,
       isUser: false,
       timestamp: DateTime.now(),
     ));
+  }
+
+  @override
+  void didUpdateWidget(FloatingChatbot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Si la información del estudiante cambió, actualizar el servicio
+    if (widget.studentData != oldWidget.studentData) {
+      _chatbotService.updateStudentData(widget.studentData);
+    }
   }
 
   @override
@@ -378,15 +397,26 @@ class _FloatingChatbotState extends State<FloatingChatbot> {
         children: [
           if (!message.isUser) ...[
             Container(
-              width: 28,
-              height: 28,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.3),
+                color: const Color(0xFF1B38E3),
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white,
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: const Icon(
                 Icons.smart_toy,
-                size: 16,
+                size: 18,
                 color: Colors.white,
               ),
             ),
@@ -427,16 +457,27 @@ class _FloatingChatbotState extends State<FloatingChatbot> {
           if (message.isUser) ...[
             const SizedBox(width: 8),
             Container(
-              width: 28,
-              height: 28,
-              decoration: const BoxDecoration(
-                color: Color(0xFF1B38E3),
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.white,
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xFF1B38E3),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: const Icon(
                 Icons.person,
-                size: 16,
-                color: Colors.white,
+                size: 18,
+                color: Color(0xFF1B38E3),
               ),
             ),
           ],

@@ -15,6 +15,7 @@ import '../widgets/tower_map_viewer.dart';
 import '../navigation/navigation_map_screen.dart';
 import '../chatbot/chatbot_screen.dart';
 import '../widgets/floating_chatbot.dart';
+import '../admin/salones_admin_screen.dart';
 
 class LatLng {
   final double latitude;
@@ -1025,8 +1026,18 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ],
         ),
           ),
-          // Chatbot flotante
-          const FloatingChatbot(),
+          // Chatbot flotante con información del estudiante
+          FloatingChatbot(
+            studentData: student != null ? {
+              'NameEstudent': student!.name,
+              'IdEstudiante': student!.id,
+              'Semestre': student!.semester,
+              'Campus': student!.zonalAddress,
+              'Escuela': student!.school,
+              'Carrera': student!.career,
+              'CorreoInstud': student!.institutionalEmail,
+            } : null,
+          ),
         ],
       ),
     );
@@ -1548,14 +1559,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     }
   }
 
-  // Construir el drawer lateral transparente
+  // Construir el drawer lateral moderno con fondo azul
   Widget _buildDrawer(BuildContext context, bool isLargePhone, bool isTablet) {
     return Drawer(
       backgroundColor: Colors.transparent,
       child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.95),
-          borderRadius: const BorderRadius.only(
+        decoration: const BoxDecoration(
+          color: Color(0xFF1B38E3),
+          borderRadius: BorderRadius.only(
             topRight: Radius.circular(20),
             bottomRight: Radius.circular(20),
           ),
@@ -1566,12 +1577,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               // Header del drawer
               Container(
                 padding: EdgeInsets.all(isLargePhone ? 20 : (isTablet ? 24 : 16)),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1B38E3),
-                  borderRadius: BorderRadius.only(
-                    topRight: Radius.circular(20),
-                  ),
-                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -1579,7 +1584,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         'Menú',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: isLargePhone ? 22 : (isTablet ? 24 : 20),
+                          fontSize: isLargePhone ? 24 : (isTablet ? 26 : 22),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1589,19 +1594,28 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       icon: const Icon(
                         Icons.close,
                         color: Colors.white,
+                        size: 24,
                       ),
                     ),
                   ],
                 ),
               ),
               
-              const SizedBox(height: 20),
+              // Separador
+              Divider(
+                color: Colors.white.withOpacity(0.2),
+                thickness: 1,
+                height: 1,
+              ),
+              
+              const SizedBox(height: 8),
               
               // Opciones del menú
               Expanded(
                 child: ListView(
                   padding: EdgeInsets.symmetric(
                     horizontal: isLargePhone ? 16 : (isTablet ? 20 : 14),
+                    vertical: 8,
                   ),
                   children: [
                     // Botón Baños
@@ -1622,7 +1636,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       isTablet: isTablet,
                     ),
                     
-                    const SizedBox(height: 12),
+                    // Separador
+                    Divider(
+                      color: Colors.white.withOpacity(0.2),
+                      thickness: 1,
+                      height: 1,
+                      indent: isLargePhone ? 56 : (isTablet ? 60 : 52),
+                    ),
                     
                     // Botón Cursos
                     _buildDrawerItem(
@@ -1646,7 +1666,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       isTablet: isTablet,
                     ),
                     
-                    const SizedBox(height: 12),
+                    // Separador
+                    Divider(
+                      color: Colors.white.withOpacity(0.2),
+                      thickness: 1,
+                      height: 1,
+                      indent: isLargePhone ? 56 : (isTablet ? 60 : 52),
+                    ),
                     
                     // Botón Amigos
                     _buildDrawerItem(
@@ -1666,7 +1692,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       isTablet: isTablet,
                     ),
                     
-                    const SizedBox(height: 12),
+                    // Separador
+                    Divider(
+                      color: Colors.white.withOpacity(0.2),
+                      thickness: 1,
+                      height: 1,
+                      indent: isLargePhone ? 56 : (isTablet ? 60 : 52),
+                    ),
                     
                     // Botón Asistente Virtual (Chatbot)
                     _buildDrawerItem(
@@ -1685,13 +1717,51 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       isLargePhone: isLargePhone,
                       isTablet: isTablet,
                     ),
+                    
+                    // Separador
+                    Divider(
+                      color: Colors.white.withOpacity(0.2),
+                      thickness: 1,
+                      height: 1,
+                      indent: isLargePhone ? 56 : (isTablet ? 60 : 52),
+                    ),
+                    
+                    // Botón Administración de Salones
+                    _buildDrawerItem(
+                      context: context,
+                      icon: Icons.admin_panel_settings,
+                      title: 'Administración de Salones',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SalonesAdminScreen(),
+                          ),
+                        );
+                      },
+                      isLargePhone: isLargePhone,
+                      isTablet: isTablet,
+                    ),
                   ],
                 ),
               ),
               
+              // Separador antes de cerrar sesión
+              Divider(
+                color: Colors.white.withOpacity(0.2),
+                thickness: 1,
+                height: 1,
+              ),
+              
+              const SizedBox(height: 8),
+              
               // Botón Cerrar Sesión
-              Container(
-                padding: EdgeInsets.all(isLargePhone ? 16 : (isTablet ? 20 : 14)),
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isLargePhone ? 16 : (isTablet ? 20 : 14),
+                  vertical: 8,
+                ),
                 child: _buildDrawerItem(
                   context: context,
                   icon: Icons.logout,
@@ -1724,6 +1794,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   isLogout: true,
                 ),
               ),
+              
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -1731,7 +1803,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  // Construir item del drawer
+  // Construir item del drawer moderno (sin botones, solo líneas)
   Widget _buildDrawerItem({
     required BuildContext context,
     required IconData icon,
@@ -1743,42 +1815,33 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: EdgeInsets.all(isLargePhone ? 16 : (isTablet ? 18 : 14)),
-        decoration: BoxDecoration(
-          color: isLogout
-              ? const Color(0xFF622222).withOpacity(0.1)
-              : const Color(0xFF1B38E3).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isLogout
-                ? const Color(0xFF622222).withOpacity(0.3)
-                : const Color(0xFF1B38E3).withOpacity(0.3),
-            width: 1.5,
-          ),
+        padding: EdgeInsets.symmetric(
+          horizontal: isLargePhone ? 16 : (isTablet ? 20 : 14),
+          vertical: isLargePhone ? 18 : (isTablet ? 20 : 16),
         ),
         child: Row(
           children: [
             Icon(
               icon,
-              color: isLogout ? const Color(0xFF622222) : const Color(0xFF1B38E3),
+              color: isLogout ? Colors.red.shade300 : Colors.white,
               size: isLargePhone ? 24 : (isTablet ? 26 : 22),
             ),
             const SizedBox(width: 16),
-            Text(
-              title,
-              style: TextStyle(
-                color: isLogout ? const Color(0xFF622222) : const Color(0xFF2C2C2C),
-                fontSize: isLargePhone ? 16 : (isTablet ? 18 : 15),
-                fontWeight: FontWeight.w600,
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: isLogout ? Colors.red.shade300 : Colors.white,
+                  fontSize: isLargePhone ? 16 : (isTablet ? 18 : 15),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-            const Spacer(),
             Icon(
-              Icons.arrow_forward_ios,
-              color: isLogout ? const Color(0xFF622222) : const Color(0xFF757575),
-              size: isLargePhone ? 16 : (isTablet ? 18 : 14),
+              Icons.chevron_right,
+              color: isLogout ? Colors.red.shade300 : Colors.white.withOpacity(0.7),
+              size: isLargePhone ? 20 : (isTablet ? 22 : 18),
             ),
           ],
         ),

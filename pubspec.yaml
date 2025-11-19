@@ -50,7 +50,7 @@ dependencies:
   flutter_svg: ^2.0.10+1
 
   # Para chatbot de IA (Google Gemini)
-  google_generative_ai: ^0.2.2
+  google_generative_ai: ^0.4.7
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
