@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/friend_model.dart';
 import '../../services/friends_service.dart';
 import '../widgets/tower_map_viewer.dart';
-import '../navigation/navigation_map_screen.dart';
+import '../Navigation/navigation_map_screen.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
