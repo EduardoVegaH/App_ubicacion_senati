@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'qr_scan_screen.dart';
 import '../home/student_home_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
-import '../../../services/auth_service.dart';
+import '../../services/auth_service.dart';
 
 class CredentialsLoginScreen extends StatefulWidget {
   const CredentialsLoginScreen({super.key});
@@ -254,12 +253,55 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                           height: 50,
                           child: ElevatedButton(
                             onPressed: () async {
+                              // Validar campos
+                              final email = _emailCtrl.text.trim();
+                              final password = _passCtrl.text.trim();
+
+                              if (email.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Por favor ingresa tu ID de Estudiante'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (password.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Por favor ingresa tu contraseña'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              // Validar formato de email
+                              final emailRegex = RegExp(
+                                r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                              );
+                              
+                              // Si no tiene @, agregar @senati.pe
+                              String finalEmail = email;
+                              if (!email.contains('@')) {
+                                finalEmail = '$email@senati.pe';
+                              } else if (!emailRegex.hasMatch(finalEmail)) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('El formato del ID de Estudiante no es válido'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+
                               setState(() => _loading = true);
 
                               try {
                                 await _auth.login(
-                                  email: _emailCtrl.text.trim(),
-                                  password: _passCtrl.text.trim(),
+                                  email: finalEmail,
+                                  password: password,
                                 );
 
                                 if (mounted) {
@@ -271,14 +313,43 @@ class _CredentialsLoginScreenState extends State<CredentialsLoginScreen> {
                                   );
                                 }
                               } on FirebaseAuthException catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      e.message ?? 'Error al iniciar sesión',
+                                String errorMessage = 'Error al iniciar sesión';
+                                
+                                switch (e.code) {
+                                  case 'invalid-email':
+                                    errorMessage = 'El formato del ID de Estudiante no es válido';
+                                    break;
+                                  case 'user-not-found':
+                                    errorMessage = 'No se encontró una cuenta con este ID de Estudiante';
+                                    break;
+                                  case 'wrong-password':
+                                    errorMessage = 'La contraseña es incorrecta';
+                                    break;
+                                  case 'invalid-credential':
+                                    errorMessage = 'Credenciales inválidas. Verifica tu ID y contraseña';
+                                    break;
+                                  default:
+                                    errorMessage = e.message ?? errorMessage;
+                                }
+
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(errorMessage),
+                                      backgroundColor: Colors.red,
+                                      duration: const Duration(seconds: 4),
                                     ),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
+                                  );
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error inesperado: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
                               } finally {
                                 if (mounted) setState(() => _loading = false);
                               }

@@ -1,17 +1,44 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import '../../models/student_model.dart';
-import '../login/qr_scan_screen.dart';
+import '../login/login_screen.dart';
 import '../../services/firebase_service.dart';
 import 'dart:async'; // Tiempo de espera
 import 'package:cloud_firestore/cloud_firestore.dart'; // firestore
 import 'package:firebase_auth/firebase_auth.dart'; // firebase auth
 import 'package:flutter_application_1/services/location_service.dart';
+import 'package:flutter_application_1/services/notification_service.dart';
+import 'package:geolocator/geolocator.dart';
+import 'courses_list_screen.dart';
+import '../bathrooms/bathroom_status_screen.dart';
 
 class LatLng {
   final double latitude;
   final double longitude;
   const LatLng(this.latitude, this.longitude);
+}
+
+// Enum para el estado del curso
+enum CourseStatus {
+  upcoming,      // Próximo (más de 10 min antes)
+  soon,          // Próximo curso (10 min antes)
+  inProgress,    // En curso
+  late,          // Llegada tardía (pasó la hora de inicio)
+  finished,      // Finalizado
+}
+
+// Clase helper para el estado del curso
+class CourseStatusInfo {
+  final CourseStatus status;
+  final String label;
+  final Color color;
+  final IconData icon;
+
+  CourseStatusInfo({
+    required this.status,
+    required this.label,
+    required this.color,
+    required this.icon,
+  });
 }
 
 class StudentHomeScreen extends StatefulWidget {
@@ -28,13 +55,32 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   late String userUid; // UID actual de FirebaseAuth
   String campusStatus = "Desconocido"; // Texto: Dentro/Fuera del campus
   Timer? gpsTimer; // Para el Timer periódico
+  Timer? courseStatusTimer; // Timer para actualizar estado de cursos
+  Timer? attendanceCheckTimer; // Timer para validar asistencia GPS
+  
+  // Mapa para rastrear el estado de asistencia GPS de cada curso
+  final Map<String, AttendanceStatus> _courseAttendanceStatus = {};
+  final Map<String, DateTime?> _courseFirstEntryTime = {}; // Primera vez que ingresó al salón
+  final Map<String, bool> _courseMonitoringActive = {}; // Si está monitoreando este curso
 
   //Polígono aproximado del campus SENATI INDEPENDENCIA
   final List<LatLng> campusPolygon = const [
-    LatLng(-11.997005, -77.061355),
-    LatLng(-11.997510, -77.061050),
-    LatLng(-11.997950, -77.061660),
-    LatLng(-11.997430, -77.061950),
+    LatLng(-11.997982, -77.062461),
+    LatLng(-11.997751, -77.061253),
+    LatLng(-11.997523, -77.060133),
+    LatLng(-11.997359, -77.058693),
+    LatLng(-11.998306, -77.058565),
+    LatLng(-11.998931, -77.058429),
+    LatLng(-11.999843, -77.058283),
+    LatLng(-12.000013, -77.058421),
+    LatLng(-12.000218, -77.058479),
+    LatLng(-12.000402, -77.059963),
+    LatLng(-12.000665, -77.061691),
+    LatLng(-12.000668, -77.062109),
+    LatLng(-11.999955, -77.062196),
+    LatLng(-11.999600, -77.062255),
+    LatLng(-11.998928, -77.062383),
+    LatLng(-11.998417, -77.062422),
   ];
 
   @override
@@ -42,12 +88,96 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     super.initState();
     //1) Obtiene el UID del usuario logueado
     userUid = FirebaseAuth.instance.currentUser!.uid;
-    // 2) Carga los datos del estudiante
+    // 2) Inicializar notificaciones locales (sin bloquear)
+    _initializeNotifications();
+    // 3) Carga los datos del estudiante
     _loadStudentData();
-    // 3) Activar el GPS automático cada 5 segundos
+    // 4) Activar el GPS automático cada 5 segundos
     gpsTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       _updateLocation();
     });
+    // 5) Actualizar estado de cursos cada minuto
+    courseStatusTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) {
+        setState(() {
+          // Forzar actualización para recalcular estados
+        });
+      }
+    });
+    // 6) Validar asistencia GPS cada 30 segundos
+    attendanceCheckTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _checkCourseAttendance();
+    });
+  }
+
+  // Inicializar notificaciones locales (con manejo de errores)
+  Future<void> _initializeNotifications() async {
+    try {
+      print('🔔 Inicializando servicio de notificaciones...');
+      await NotificationService.initialize();
+      print('✅ Servicio de notificaciones inicializado correctamente');
+    } catch (e) {
+      print('❌ Error al inicializar notificaciones: $e');
+      // No bloquear la app si falla la inicialización de notificaciones
+    }
+  }
+  
+  @override
+  void dispose() {
+    gpsTimer?.cancel();
+    courseStatusTimer?.cancel();
+    attendanceCheckTimer?.cancel();
+    super.dispose();
+  }
+
+  // Función helper para generar historial de ejemplo
+  CourseHistory _generateSampleHistory(String courseName, String startTime, String endTime) {
+    final now = DateTime.now();
+    final records = <AttendanceRecord>[];
+    
+    // Generar registros de las últimas 2 semanas
+    for (int i = 14; i >= 0; i--) {
+      final date = now.subtract(Duration(days: i));
+      // Solo incluir días de semana (lunes a viernes)
+      if (date.weekday >= 1 && date.weekday <= 5) {
+        AttendanceStatus status;
+        bool validatedByGPS = false;
+        
+        // Simular diferentes estados
+        if (i % 7 == 0) {
+          status = AttendanceStatus.absent;
+        } else if (i % 5 == 0) {
+          status = AttendanceStatus.late;
+          validatedByGPS = true;
+        } else if (i == 0) {
+          // Hoy - verificar si ya pasó
+          final endTimeParsed = _parseTime(endTime);
+          if (endTimeParsed != null && now.isAfter(endTimeParsed)) {
+            status = AttendanceStatus.completed;
+            validatedByGPS = true;
+          } else {
+            status = AttendanceStatus.present;
+            validatedByGPS = true;
+          }
+        } else {
+          status = AttendanceStatus.present;
+          validatedByGPS = i % 3 != 0; // Algunos validados por GPS
+        }
+        
+        records.add(AttendanceRecord(
+          date: date,
+          startTime: startTime,
+          endTime: endTime,
+          status: status,
+          validatedByGPS: validatedByGPS,
+        ));
+      }
+    }
+    
+    return CourseHistory(
+      courseName: courseName,
+      records: records,
+    );
   }
 
   // Datos de ejemplo del estudiante
@@ -75,26 +205,24 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               teacher: 'MANSILLA NEYRA, JUAN RAMON',
               locationCode: 'IND - TORRE B 60TB - 200',
               locationDetail: 'Torre B, Piso 2, Salón 200',
-            ),
-            Course(
-              name: 'SEMINARIO COMPLEMENT PRÁCTI',
-              type: 'Seminario',
-              startTime: '10:15 AM',
-              endTime: '1:15 PM',
-              duration: '10:15 AM - 1:15 PM',
-              teacher: 'MANSILLA NEYRA, JUAN RAMON',
-              locationCode: 'IND - TORRE B 60TB - 200',
-              locationDetail: 'Torre B, Piso 2, Salón 200',
+              history: _generateSampleHistory('SEMINARIO COMPLEMENT PRÁCTI', '7:00 AM', '10:00 AM'),
+              classroomLatitude: -11.997200, // Coordenadas de ejemplo del salón
+              classroomLongitude: -77.061500,
+              classroomRadius: 10.0,
             ),
             Course(
               name: 'DESARROLLO HUMANO',
               type: 'Clase',
-              startTime: '2:00 PM',
-              endTime: '3:30 PM',
-              duration: '2:00 PM - 3:30 PM',
+              startTime: '3:40 PM',
+              endTime: '5:00 PM',
+              duration: '3:40 PM - 5:00 PM',
               teacher: 'GONZALES LEON, JACQUELINE CORAL',
               locationCode: 'IND - TORRE C 60TC - 604',
               locationDetail: 'Torre C, Piso 6, Salón 604',
+              history: _generateSampleHistory('DESARROLLO HUMANO', '3:40 PM', '5:00 PM'),
+              classroomLatitude: -11.997300, // Coordenadas de ejemplo del salón
+              classroomLongitude: -77.061600,
+              classroomRadius: 10.0,
             ),
             Course(
               name: 'REDES DE COMPUTADORAS',
@@ -105,11 +233,37 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               teacher: 'MANSILLA NEYRA, JUAN RAMON',
               locationCode: 'IND - TORRE A 60TA - 604',
               locationDetail: 'Torre A, Piso 6, Salón 604',
+              history: _generateSampleHistory('REDES DE COMPUTADORAS', '7:00 AM', '9:15 AM'),
+              classroomLatitude: -11.997100, // Coordenadas de ejemplo del salón
+              classroomLongitude: -77.061400,
+              classroomRadius: 10.0,
             ),
           ],
         );
         loading = false;
       });
+      
+      // Programar notificaciones push para todos los cursos (10 minutos antes)
+      // Esperar un poco para asegurar que las notificaciones estén inicializadas
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // Verificar permisos antes de programar
+      final hasPermissions = await NotificationService.checkNotificationPermissions();
+      if (!hasPermissions) {
+        print('⚠️ ADVERTENCIA: Las notificaciones no están habilitadas');
+        print('💡 El usuario debe habilitar las notificaciones en Configuración > Apps > Senati GPS > Notificaciones');
+      }
+      
+      // Programar una notificación de prueba en 10 segundos para verificar que funciona
+      print('🧪 Programando notificación de prueba en 10 segundos...');
+      await NotificationService.scheduleTestNotification(10);
+      
+      if (student != null && student!.coursesToday.isNotEmpty) {
+        print('📚 Programando notificaciones para ${student!.coursesToday.length} cursos');
+        await NotificationService.scheduleAllCourseNotifications(
+          student!.coursesToday,
+        );
+      }
     } else {
       setState(() {
         loading = false;
@@ -222,10 +376,237 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    gpsTimer?.cancel();
-    super.dispose();
+  // Función para ordenar cursos por horario de inicio
+  List<Course> _sortCoursesByTime(List<Course> courses) {
+    final sortedCourses = List<Course>.from(courses);
+    sortedCourses.sort((a, b) {
+      final timeA = _parseTime(a.startTime);
+      final timeB = _parseTime(b.startTime);
+      
+      if (timeA == null && timeB == null) return 0;
+      if (timeA == null) return 1; // Los que no tienen horario van al final
+      if (timeB == null) return -1;
+      
+      return timeA.compareTo(timeB); // Ordenar de más temprano a más tarde
+    });
+    return sortedCourses;
+  }
+
+  // Función para parsear tiempo de formato "7:00 AM" a DateTime
+  DateTime? _parseTime(String timeStr) {
+    try {
+      // Formato esperado: "7:00 AM" o "2:00 PM" (formato en inglés)
+      final now = DateTime.now();
+      
+      // Parsear manualmente para mayor control
+      final parts = timeStr.trim().split(' ');
+      if (parts.length != 2) {
+        throw FormatException('Formato incorrecto: $timeStr');
+      }
+      
+      final timePart = parts[0]; // "7:00"
+      final amPm = parts[1].toUpperCase(); // "AM" o "PM"
+      
+      final timeParts = timePart.split(':');
+      if (timeParts.length != 2) {
+        throw FormatException('Formato de hora incorrecto: $timePart');
+      }
+      
+      int hour = int.parse(timeParts[0]);
+      final minute = int.parse(timeParts[1]);
+      
+      // Convertir a formato 24 horas
+      if (amPm == 'PM' && hour != 12) {
+        hour += 12;
+      } else if (amPm == 'AM' && hour == 12) {
+        hour = 0;
+      }
+      
+      // Crear DateTime con la fecha de hoy y la hora parseada
+      final result = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        hour,
+        minute,
+      );
+      
+      return result;
+    } catch (e) {
+      print('Error parseando tiempo: $timeStr - $e');
+      return null;
+    }
+  }
+
+  // Función para determinar el estado de un curso
+  CourseStatusInfo _getCourseStatus(Course course) {
+    final now = DateTime.now();
+    final startTime = _parseTime(course.startTime);
+    final endTime = _parseTime(course.endTime);
+
+    if (startTime == null || endTime == null) {
+      return CourseStatusInfo(
+        status: CourseStatus.upcoming,
+        label: 'Horario no disponible',
+        color: Colors.grey,
+        icon: Icons.help_outline,
+      );
+    }
+
+    // Calcular diferencia en minutos
+    final minutesUntilStart = startTime.difference(now).inMinutes;
+    final minutesUntilEnd = endTime.difference(now).inMinutes;
+
+    // Finalizado (verificar primero) - si ya pasó el horario de fin
+    if (minutesUntilEnd <= 0) {
+      return CourseStatusInfo(
+        status: CourseStatus.finished,
+        label: 'Finalizado',
+        color: Colors.grey,
+        icon: Icons.check_circle_outline,
+      );
+    }
+
+    // Llegada tardía (pasó la hora de inicio pero aún no termina) - Prioridad
+    // Se considera tardío si pasaron más de 5 minutos desde el inicio
+    if (minutesUntilStart < -5 && minutesUntilEnd > 0) {
+      return CourseStatusInfo(
+        status: CourseStatus.late,
+        label: 'Llegada tardía',
+        color: Colors.red,
+        icon: Icons.warning,
+      );
+    }
+
+    // En curso (el curso ya empezó, dentro de los primeros 5 minutos o después)
+    if (minutesUntilStart <= 0 && minutesUntilEnd > 0) {
+      return CourseStatusInfo(
+        status: CourseStatus.inProgress,
+        label: 'En curso',
+        color: Colors.green,
+        icon: Icons.play_circle_outline,
+      );
+    }
+
+    // Próximo curso (10 minutos antes)
+    if (minutesUntilStart > 0 && minutesUntilStart <= 10) {
+      return CourseStatusInfo(
+        status: CourseStatus.soon,
+        label: 'Próximo curso',
+        color: Colors.orange,
+        icon: Icons.notifications_active,
+      );
+    }
+
+    // Próximo (más de 10 minutos)
+    return CourseStatusInfo(
+      status: CourseStatus.upcoming,
+      label: 'Próximo',
+      color: Colors.blue,
+      icon: Icons.schedule,
+    );
+  }
+
+  // Función para verificar si el alumno está dentro del salón
+  bool _isInsideClassroom(double? currentLat, double? currentLon, Course course) {
+    if (currentLat == null || currentLon == null) return false;
+    if (course.classroomLatitude == null || course.classroomLongitude == null) return false;
+    
+    final distance = Geolocator.distanceBetween(
+      currentLat,
+      currentLon,
+      course.classroomLatitude!,
+      course.classroomLongitude!,
+    );
+    
+    return distance <= (course.classroomRadius ?? 10.0);
+  }
+
+  // Función para validar el estado de asistencia basado en GPS
+  AttendanceStatus _validateAttendanceStatus(Course course, double? currentLat, double? currentLon) {
+    final now = DateTime.now();
+    final startTime = _parseTime(course.startTime);
+    final endTime = _parseTime(course.endTime);
+    
+    if (startTime == null || endTime == null) {
+      return AttendanceStatus.absent; // Por defecto ausente si no hay horario
+    }
+    
+    // Verificar si estamos dentro del horario del curso
+    final isWithinSchedule = now.isAfter(startTime) && now.isBefore(endTime);
+    final isAfterEnd = now.isAfter(endTime);
+    
+    // Si ya pasó el horario y nunca ingresó, es ausente
+    if (isAfterEnd && _courseFirstEntryTime[course.name] == null) {
+      return AttendanceStatus.absent;
+    }
+    
+    // Si está dentro del horario o ya pasó pero ingresó
+    if (isWithinSchedule || (isAfterEnd && _courseFirstEntryTime[course.name] != null)) {
+      final isInside = _isInsideClassroom(currentLat, currentLon, course);
+      
+      if (isInside) {
+        // Si es la primera vez que ingresa, registrar la hora
+        if (_courseFirstEntryTime[course.name] == null) {
+          _courseFirstEntryTime[course.name] = now;
+          
+          // Verificar si ingresó a tiempo o tarde
+          if (now.isAfter(startTime.add(const Duration(minutes: 5)))) {
+            // Ingresó después de 5 minutos del inicio = Tardanza
+            return AttendanceStatus.late;
+          } else {
+            // Ingresó a tiempo = Presente
+            return AttendanceStatus.present;
+          }
+        } else {
+          // Ya ingresó antes, mantener el estado que tenía
+          return _courseAttendanceStatus[course.name] ?? AttendanceStatus.present;
+        }
+      } else {
+        // Si salió del salón, mantener el último estado registrado
+        // (no puede cambiar si sale al baño)
+        return _courseAttendanceStatus[course.name] ?? AttendanceStatus.absent;
+      }
+    }
+    
+    // Si aún no ha empezado el curso, mantener ausente por defecto
+    return AttendanceStatus.absent;
+  }
+
+  // Función para verificar asistencia de todos los cursos activos
+  Future<void> _checkCourseAttendance() async {
+    if (student == null) return;
+    
+    try {
+      final position = await LocationService.getCurrentLocation();
+      final currentLat = position.latitude;
+      final currentLon = position.longitude;
+      
+      for (var course in student!.coursesToday) {
+        final status = _getCourseStatus(course);
+        final isActive = status.status == CourseStatus.inProgress || 
+                        status.status == CourseStatus.late ||
+                        (status.status == CourseStatus.finished && 
+                         _courseFirstEntryTime[course.name] != null);
+        
+        if (isActive || status.status == CourseStatus.soon) {
+          final attendanceStatus = _validateAttendanceStatus(course, currentLat, currentLon);
+          _courseAttendanceStatus[course.name] = attendanceStatus;
+          
+          if (mounted) {
+            setState(() {});
+          }
+        }
+      }
+    } catch (e) {
+      // Si hay error al obtener ubicación, mantener estados actuales
+      print('Error al verificar asistencia GPS: $e');
+    }
+  }
+
+  // Función para obtener el estado de asistencia GPS de un curso
+  AttendanceStatus _getCourseAttendanceStatus(Course course) {
+    return _courseAttendanceStatus[course.name] ?? AttendanceStatus.absent;
   }
 
   @override
@@ -257,6 +638,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white, // Fondo blanco en lugar de oscuro
+      drawer: _buildDrawer(context, isLargePhone, isTablet),
       body: SafeArea(
         child: Column(
           children: [
@@ -270,51 +652,36 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   bottomRight: Radius.circular(0),
                 ),
               ),
-              padding: EdgeInsets.symmetric(horizontal: padding, vertical: 12),
+              padding: EdgeInsets.only(
+                left: padding,
+                right: padding,
+                top: isLargePhone ? 16 : (isTablet ? 18 : 14),
+                bottom: 16,
+              ),
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Botón Volver a escanear
-                      InkWell(
-                        onTap: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (context) => const QRScanScreen(),
-                            ),
-                          );
+                  // Icono de menú (arriba a la izquierda)
+                  Builder(
+                    builder: (context) => Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        onPressed: () {
+                          Scaffold.of(context).openDrawer();
                         },
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.arrow_back,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Volver a escanear',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: isTablet ? 18 : 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
+                        icon: const Icon(
+                          Icons.menu,
+                          color: Colors.white,
+                          size: 24,
                         ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
-                      // Icono de ojo/privacidad
-                      const Icon(
-                        Icons.visibility,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ],
+                    ),
                   ),
-                  SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+                  SizedBox(height: isLargePhone ? 12 : (isTablet ? 14 : 10)),
                   // Información del estudiante
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Foto de perfil + estado
                       Stack(
@@ -377,6 +744,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               student!.name,
@@ -401,25 +769,30 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                student!.semester,
-                                style: TextStyle(
-                                  color: const Color(0xFF1B38E3),
-                                  fontSize: isLargePhone
-                                      ? 13
-                                      : (isTablet ? 14 : 12),
-                                  fontWeight: FontWeight.bold,
+                            // Fila con etiqueta de semestre y botón Cursos
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    student!.semester,
+                                    style: TextStyle(
+                                      color: const Color(0xFF1B38E3),
+                                      fontSize: isLargePhone
+                                          ? 13
+                                          : (isTablet ? 14 : 12),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ],
                         ),
@@ -563,8 +936,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                           SizedBox(
                             height: isLargePhone ? 22 : (isTablet ? 24 : 20),
                           ),
-                          // Lista de cursos
-                          ...student!.coursesToday.asMap().entries.map((entry) {
+                          // Lista de cursos ordenados por horario
+                          ..._sortCoursesByTime(student!.coursesToday).asMap().entries.map((entry) {
                             final index = entry.key;
                             final course = entry.value;
                             return Padding(
@@ -685,6 +1058,22 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
+  // Función helper para obtener información del estado de asistencia
+  AttendanceStatusInfo? _getAttendanceStatusInfo(Course course) {
+    final history = course.history;
+    if (history == null || history.records.isEmpty) return null;
+    
+    final lastRecord = history.lastRecord;
+    if (lastRecord == null) return null;
+    
+    return AttendanceStatusInfo(
+      status: lastRecord.status,
+      date: lastRecord.date,
+      startTime: lastRecord.startTime,
+      endTime: lastRecord.endTime,
+    );
+  }
+
   Widget _buildCourseCard(
     Course course,
     int index,
@@ -692,316 +1081,697 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     bool isTablet,
   ) {
     final showMap = _showMap[index] ?? false;
+    final statusInfo = _getCourseStatus(course);
+    final isFinished = statusInfo.status == CourseStatus.finished;
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: EdgeInsets.all(isLargePhone ? 18 : (isTablet ? 20 : 16)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Título y etiqueta
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  course.name,
-                  style: TextStyle(
-                    fontSize: isLargePhone ? 17 : (isTablet ? 18 : 16),
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C2C2C),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _getCourseTypeColor(course.type),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.book,
-                      size: isLargePhone ? 15 : (isTablet ? 16 : 14),
-                      color: const Color(0xFF424242),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      course.type,
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 12.5 : (isTablet ? 13 : 12),
-                        fontWeight: FontWeight.bold,
-                        color: _getCourseTypeTextColor(course.type),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(
+            color: isFinished 
+                ? const Color(0xFFBDBDBD) 
+                : const Color(0xFFE0E0E0), 
+            width: 1,
           ),
-          SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
-          // Horario
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.access_time,
-                size: isLargePhone ? 21 : (isTablet ? 22 : 20),
-                color: const Color(0xFF757575),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: EdgeInsets.all(isLargePhone ? 18 : (isTablet ? 20 : 16)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Título y etiquetas
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Horario',
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 13.5 : (isTablet ? 14 : 13),
-                        color: const Color(0xFF757575),
-                      ),
-                    ),
-                    Text(
-                      '${course.startTime} - ${course.endTime}',
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 14.5 : (isTablet ? 15 : 14),
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2C2C2C),
-                      ),
-                    ),
-                    Text(
-                      'Duración: ${course.duration}',
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 12.5 : (isTablet ? 13 : 12),
-                        color: const Color(0xFF757575),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
-          // Docente
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.person,
-                size: isLargePhone ? 21 : (isTablet ? 22 : 20),
-                color: const Color(0xFF757575),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Docente',
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 13.5 : (isTablet ? 14 : 13),
-                        color: const Color(0xFF757575),
-                      ),
-                    ),
-                    Text(
-                      course.teacher,
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 14.5 : (isTablet ? 15 : 14),
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2C2C2C),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
-          // Ubicación
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.location_on,
-                size: isLargePhone ? 21 : (isTablet ? 22 : 20),
-                color: const Color(0xFF757575),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ubicación',
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 13.5 : (isTablet ? 14 : 13),
-                        color: const Color(0xFF757575),
-                      ),
-                    ),
-                    Text(
-                      course.locationCode,
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 14.5 : (isTablet ? 15 : 14),
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2C2C2C),
-                      ),
-                    ),
-                    Text(
-                      course.locationDetail,
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 12.5 : (isTablet ? 13 : 12),
-                        color: const Color(0xFF757575),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
-          // Botón Ver/Ocultar Mapa
-          SizedBox(
-            width: double.infinity,
-            height: isLargePhone ? 48 : (isTablet ? 50 : 44),
-            child: ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  _showMap[index] = !showMap;
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1B38E3),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              icon: Icon(showMap ? Icons.arrow_upward : Icons.send),
-              label: Text(
-                showMap ? 'Ocultar Mapa' : 'Ver Ubicación en Mapa',
-                style: TextStyle(
-                  fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
-                ),
-              ),
-            ),
-          ),
-          // Mapa (si está visible)
-          if (showMap) ...[
-            SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
-            Container(
-              height: isLargePhone ? 220 : (isTablet ? 250 : 200),
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFE0E0E0)),
-                borderRadius: BorderRadius.circular(12),
-                color: const Color(0xFFF5F5F5),
-              ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: EdgeInsets.all(
-                      isLargePhone ? 14 : (isTablet ? 16 : 12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          size: isLargePhone ? 21 : (isTablet ? 22 : 20),
+                    Expanded(
+                      child: Text(
+                        course.name,
+                        style: TextStyle(
+                          fontSize: isLargePhone ? 17 : (isTablet ? 18 : 16),
+                          fontWeight: FontWeight.bold,
                           color: const Color(0xFF2C2C2C),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                course.locationDetail,
-                                style: TextStyle(
-                                  fontSize: isLargePhone
-                                      ? 15
-                                      : (isTablet ? 16 : 14),
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFF2C2C2C),
-                                ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Etiqueta de estado de asistencia GPS
+                    _buildAttendanceStatusBadge(course, isLargePhone, isTablet),
+                  ],
+                ),
+                // Etiqueta de estado del curso
+                SizedBox(height: isLargePhone ? 10 : (isTablet ? 12 : 8)),
+                Builder(
+                  builder: (context) {
+                    final statusInfo = _getCourseStatus(course);
+                    // Solo mostrar etiquetas relevantes (próximo curso, tardío, en curso)
+                    if (statusInfo.status == CourseStatus.soon ||
+                        statusInfo.status == CourseStatus.late ||
+                        statusInfo.status == CourseStatus.inProgress) {
+                      return Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isLargePhone ? 10 : (isTablet ? 12 : 8),
+                          vertical: isLargePhone ? 6 : (isTablet ? 7 : 5),
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusInfo.color.withOpacity(0.15),
+                          border: Border.all(
+                            color: statusInfo.color,
+                            width: 1.5,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              statusInfo.icon,
+                              size: isLargePhone ? 16 : (isTablet ? 17 : 15),
+                              color: statusInfo.color,
+                            ),
+                            SizedBox(width: isLargePhone ? 6 : (isTablet ? 7 : 5)),
+                            Text(
+                              statusInfo.label,
+                              style: TextStyle(
+                                fontSize: isLargePhone ? 13 : (isTablet ? 14 : 12),
+                                fontWeight: FontWeight.bold,
+                                color: statusInfo.color,
                               ),
-                              Text(
-                                course.name,
-                                style: TextStyle(
-                                  fontSize: isLargePhone
-                                      ? 12.5
-                                      : (isTablet ? 13 : 12),
-                                  color: const Color(0xFF757575),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE0E0E0),
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(12),
-                          bottomRight: Radius.circular(12),
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Mapa de Google Maps\n(Integración pendiente)',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: const Color(0xFF757575),
-                            fontSize: isLargePhone ? 13 : 12,
-                          ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ],
+            ),
+            SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+            // Horario
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.access_time,
+                  size: isLargePhone ? 21 : (isTablet ? 22 : 20),
+                  color: const Color(0xFF757575),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Horario',
+                        style: TextStyle(
+                          fontSize: isLargePhone ? 13.5 : (isTablet ? 14 : 13),
+                          color: const Color(0xFF757575),
                         ),
                       ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.all(
-                      isLargePhone ? 14 : (isTablet ? 16 : 12),
-                    ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: isLargePhone ? 48 : (isTablet ? 50 : 44),
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          // TODO: Implementar navegación con Google Maps
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4CAF50),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        icon: const Icon(Icons.send),
-                        label: Text(
-                          'Navegar Ahora (Tiempo Real)',
-                          style: TextStyle(
-                            fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
-                          ),
+                      Text(
+                        '${course.startTime} - ${course.endTime}',
+                        style: TextStyle(
+                          fontSize: isLargePhone ? 14.5 : (isTablet ? 15 : 14),
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF2C2C2C),
                         ),
                       ),
-                    ),
+                      Text(
+                        'Duración: ${course.duration}',
+                        style: TextStyle(
+                          fontSize: isLargePhone ? 12.5 : (isTablet ? 13 : 12),
+                          color: const Color(0xFF757575),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+              ],
+            ),
+            SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+            // Docente
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.person,
+                  size: isLargePhone ? 21 : (isTablet ? 22 : 20),
+                  color: const Color(0xFF757575),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Docente',
+                        style: TextStyle(
+                          fontSize: isLargePhone ? 13.5 : (isTablet ? 14 : 13),
+                          color: const Color(0xFF757575),
+                        ),
+                      ),
+                      Text(
+                        course.teacher,
+                        style: TextStyle(
+                          fontSize: isLargePhone ? 14.5 : (isTablet ? 15 : 14),
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF2C2C2C),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+            // Ubicación
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.location_on,
+                  size: isLargePhone ? 21 : (isTablet ? 22 : 20),
+                  color: const Color(0xFF757575),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ubicación',
+                        style: TextStyle(
+                          fontSize: isLargePhone ? 13.5 : (isTablet ? 14 : 13),
+                          color: const Color(0xFF757575),
+                        ),
+                      ),
+                      Text(
+                        course.locationCode,
+                        style: TextStyle(
+                          fontSize: isLargePhone ? 14.5 : (isTablet ? 15 : 14),
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF2C2C2C),
+                        ),
+                      ),
+                      Text(
+                        course.locationDetail,
+                        style: TextStyle(
+                          fontSize: isLargePhone ? 12.5 : (isTablet ? 13 : 12),
+                          color: const Color(0xFF757575),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+            // Botón Ver/Ocultar Mapa (funciona incluso si el curso está finalizado)
+            SizedBox(
+              width: double.infinity,
+              height: isLargePhone ? 48 : (isTablet ? 50 : 44),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _showMap[index] = !showMap;
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1B38E3),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                icon: Icon(showMap ? Icons.arrow_upward : Icons.send),
+                label: Text(
+                  showMap ? 'Ocultar Mapa' : 'Ver Ubicación en Mapa',
+                  style: TextStyle(
+                    fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
+                  ),
+                ),
               ),
             ),
+            // Mapa (si está visible, funciona incluso si el curso está finalizado)
+            if (showMap) ...[
+              SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+              Container(
+                height: isLargePhone ? 220 : (isTablet ? 250 : 200),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFFE0E0E0)),
+                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFFF5F5F5),
+                ),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.all(
+                        isLargePhone ? 14 : (isTablet ? 16 : 12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: isLargePhone ? 21 : (isTablet ? 22 : 20),
+                            color: const Color(0xFF2C2C2C),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  course.locationDetail,
+                                  style: TextStyle(
+                                    fontSize: isLargePhone
+                                        ? 15
+                                        : (isTablet ? 16 : 14),
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF2C2C2C),
+                                  ),
+                                ),
+                                Text(
+                                  course.name,
+                                  style: TextStyle(
+                                    fontSize: isLargePhone
+                                        ? 12.5
+                                        : (isTablet ? 13 : 12),
+                                    color: const Color(0xFF757575),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0E0E0),
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(12),
+                            bottomRight: Radius.circular(12),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Mapa de Google Maps\n(Integración pendiente)',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: const Color(0xFF757575),
+                              fontSize: isLargePhone ? 13 : 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.all(
+                        isLargePhone ? 14 : (isTablet ? 16 : 12),
+                      ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: isLargePhone ? 48 : (isTablet ? 50 : 44),
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            // TODO: Implementar navegación con Google Maps
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3D79FF), // Azul celeste igual que "Presente"
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          icon: const Icon(Icons.send),
+                          label: Text(
+                            'Navegar Ahora (Tiempo Real)',
+                            style: TextStyle(
+                              fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
+        ),
+    );
+  }
+
+  // Función para construir la etiqueta de estado de asistencia GPS
+  Widget _buildAttendanceStatusBadge(
+    Course course,
+    bool isLargePhone,
+    bool isTablet,
+  ) {
+    final attendanceStatus = _getCourseAttendanceStatus(course);
+    final statusInfo = _getAttendanceBadgeInfo(attendanceStatus);
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: statusInfo.color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: statusInfo.color,
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            statusInfo.icon,
+            size: isLargePhone ? 15 : (isTablet ? 16 : 14),
+            color: statusInfo.color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            statusInfo.label,
+            style: TextStyle(
+              fontSize: isLargePhone ? 12.5 : (isTablet ? 13 : 12),
+              fontWeight: FontWeight.bold,
+              color: statusInfo.color,
+            ),
+          ),
         ],
       ),
     );
   }
+
+  Widget _buildAttendanceBadge(
+    AttendanceStatus status,
+    bool isLargePhone,
+    bool isTablet,
+  ) {
+    final badgeInfo = _getAttendanceBadgeInfo(status);
+    
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: isLargePhone ? 12 : (isTablet ? 14 : 10),
+        vertical: isLargePhone ? 6 : (isTablet ? 7 : 5),
+      ),
+      decoration: BoxDecoration(
+        color: badgeInfo.color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: badgeInfo.color,
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            badgeInfo.icon,
+            size: isLargePhone ? 16 : (isTablet ? 17 : 15),
+            color: badgeInfo.color,
+          ),
+          SizedBox(width: isLargePhone ? 6 : (isTablet ? 7 : 5)),
+          Text(
+            badgeInfo.label,
+            style: TextStyle(
+              fontSize: isLargePhone ? 13 : (isTablet ? 14 : 12),
+              fontWeight: FontWeight.bold,
+              color: badgeInfo.color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  AttendanceBadgeInfo _getAttendanceBadgeInfo(AttendanceStatus status) {
+    switch (status) {
+      case AttendanceStatus.present:
+      case AttendanceStatus.completed:
+        return AttendanceBadgeInfo(
+          label: status == AttendanceStatus.completed ? 'Completado' : 'Presente',
+          color: const Color(0xFF3D79FF),
+          icon: Icons.check_circle,
+        );
+      case AttendanceStatus.late:
+        return AttendanceBadgeInfo(
+          label: 'Tardanza',
+          color: const Color(0xFF4864A2),
+          icon: Icons.schedule,
+        );
+      case AttendanceStatus.absent:
+        return AttendanceBadgeInfo(
+          label: 'Ausente',
+          color: const Color(0xFF622222),
+          icon: Icons.cancel,
+        );
+    }
+  }
+
+  String _formatDateShort(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    
+    if (dateOnly == today) {
+      return 'Hoy';
+    } else if (dateOnly == today.subtract(const Duration(days: 1))) {
+      return 'Ayer';
+    } else {
+      final months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      return '${date.day} ${months[date.month - 1]}';
+    }
+  }
+
+  // Construir el drawer lateral transparente
+  Widget _buildDrawer(BuildContext context, bool isLargePhone, bool isTablet) {
+    return Drawer(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.95),
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header del drawer
+              Container(
+                padding: EdgeInsets.all(isLargePhone ? 20 : (isTablet ? 24 : 16)),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1B38E3),
+                  borderRadius: BorderRadius.only(
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Menú',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isLargePhone ? 22 : (isTablet ? 24 : 20),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 20),
+              
+              // Opciones del menú
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isLargePhone ? 16 : (isTablet ? 20 : 14),
+                  ),
+                  children: [
+                    // Botón Baños
+                    _buildDrawerItem(
+                      context: context,
+                      icon: Icons.wc,
+                      title: 'Baños',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const BathroomStatusScreen(),
+                          ),
+                        );
+                      },
+                      isLargePhone: isLargePhone,
+                      isTablet: isTablet,
+                    ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Botón Cursos
+                    _buildDrawerItem(
+                      context: context,
+                      icon: Icons.folder,
+                      title: 'Cursos',
+                      onTap: () {
+                        Navigator.pop(context);
+                        if (student != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CoursesListScreen(
+                                courses: student!.coursesToday,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      isLargePhone: isLargePhone,
+                      isTablet: isTablet,
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Botón Cerrar Sesión
+              Container(
+                padding: EdgeInsets.all(isLargePhone ? 16 : (isTablet ? 20 : 14)),
+                child: _buildDrawerItem(
+                  context: context,
+                  icon: Icons.logout,
+                  title: 'Cerrar Sesión',
+                  onTap: () async {
+                    Navigator.pop(context);
+                    try {
+                      await _authService.logout();
+                      if (mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (context) => const LoginScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error al cerrar sesión: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  isLargePhone: isLargePhone,
+                  isTablet: isTablet,
+                  isLogout: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Construir item del drawer
+  Widget _buildDrawerItem({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    required bool isLargePhone,
+    required bool isTablet,
+    bool isLogout = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(isLargePhone ? 16 : (isTablet ? 18 : 14)),
+        decoration: BoxDecoration(
+          color: isLogout
+              ? const Color(0xFF622222).withOpacity(0.1)
+              : const Color(0xFF1B38E3).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isLogout
+                ? const Color(0xFF622222).withOpacity(0.3)
+                : const Color(0xFF1B38E3).withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isLogout ? const Color(0xFF622222) : const Color(0xFF1B38E3),
+              size: isLargePhone ? 24 : (isTablet ? 26 : 22),
+            ),
+            const SizedBox(width: 16),
+            Text(
+              title,
+              style: TextStyle(
+                color: isLogout ? const Color(0xFF622222) : const Color(0xFF2C2C2C),
+                fontSize: isLargePhone ? 16 : (isTablet ? 18 : 15),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: isLogout ? const Color(0xFF622222) : const Color(0xFF757575),
+              size: isLargePhone ? 16 : (isTablet ? 18 : 14),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Clases helper para información de asistencia
+class AttendanceStatusInfo {
+  final AttendanceStatus status;
+  final DateTime date;
+  final String startTime;
+  final String endTime;
+
+  AttendanceStatusInfo({
+    required this.status,
+    required this.date,
+    required this.startTime,
+    required this.endTime,
+  });
+}
+
+class AttendanceBadgeInfo {
+  final String label;
+  final Color color;
+  final IconData icon;
+
+  AttendanceBadgeInfo({
+    required this.label,
+    required this.color,
+    required this.icon,
+  });
 }
