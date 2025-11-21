@@ -17,6 +17,9 @@ import '../chatbot/chatbot_screen.dart';
 import '../widgets/floating_chatbot.dart';
 import '../admin/salones_admin_screen.dart';
 
+import '../../services/sensor_service.dart';
+
+
 class LatLng {
   final double latitude;
   final double longitude;
@@ -99,10 +102,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   //  LatLng(-11.998928, -77.062383),
   //  LatLng(-11.998417, -77.062422),
   //];
-
   @override
   void initState() {
     super.initState();
+    SensorService().start();
     //1) Obtiene el UID del usuario logueado
     userUid = FirebaseAuth.instance.currentUser!.uid;
     // 2) Inicializar notificaciones locales (sin bloquear)
@@ -125,6 +128,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     attendanceCheckTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       _checkCourseAttendance();
     });
+
+    
   }
 
   // Inicializar notificaciones locales (con manejo de errores)

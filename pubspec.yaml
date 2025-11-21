@@ -36,6 +36,10 @@ dependencies:
   cloud_firestore: ^5.6.12
   geoflutterfire_plus: 0.0.32
 
+  #Sensores 
+  sensors_plus: ^7.0.0
+  # flutter_barometer: ^0.1.0  # Incompatible con Android Gradle moderno - deshabilitado temporalmente
+
   #GPS
   geolocator: ^10.0.1
 
