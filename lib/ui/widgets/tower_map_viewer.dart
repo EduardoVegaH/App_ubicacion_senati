@@ -88,23 +88,15 @@ class _TowerMapViewerState extends State<TowerMapViewer> {
               child: SizedBox(
                 width: double.infinity,
                 height: double.infinity,
-                child: Container(
+                  child: Container(
                   color: const Color(0xFFF5F5F5),
-                  child: _isExteriorView
-                      ? SvgPicture.asset(
-                          'assets/Torres_ext.svg',
-                          fit: BoxFit.contain,
-                          placeholderBuilder: (context) => const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                      : SvgPicture.asset(
-                          'assets/Torres_int.svg',
-                          fit: BoxFit.contain,
-                          placeholderBuilder: (context) => const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
+                  child: SvgPicture.asset(
+                    'assets/mapas/TorrePiso1.svg',
+                    fit: BoxFit.contain,
+                    placeholderBuilder: (context) => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
                 ),
               ),
             ),

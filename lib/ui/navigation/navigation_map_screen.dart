@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import '../widgets/mapa_interactivo.dart';
 import '../widgets/ruta_painter.dart';
 import '../../models/nodo_mapa.dart';
 import '../../services/calculador_rutas.dart';
 import '../../services/chatbot_service.dart';
+import '../../services/sensor_service.dart';
 
 /// Pantalla de navegación a pantalla completa
 /// Muestra el mapa interactivo con detección de salones y cálculo de rutas
@@ -42,15 +44,20 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
   bool _isChatLoading = false;
   bool _isChatOpen = false;
 
+  final sensorService = SensorService();
+
   @override
   void initState() {
     super.initState();
+    sensorService.start();
+    sensorService.onDataChanged = () => setState(() {});
     _cargarNodos();
     _inicializarChatbot();
   }
 
   @override
   void dispose() {
+    sensorService.stop();
     _chatController.dispose();
     _chatScrollController.dispose();
     super.dispose();
@@ -66,7 +73,6 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
     _chatbotService.updateStudentData({
       'contexto': 'navegacion',
       'salones_disponibles': salonesDisponibles,
-      'punto_inicial': _puntoInicialId,
     });
     
     // Mensaje de bienvenida
@@ -375,7 +381,7 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
         
         final mensajeConContexto = 'Contexto: Estoy en una app de navegación de SENATI. '
             'Salones disponibles: $salonesDisponibles. '
-            'Puedo calcular rutas desde el punto inicial (50, 50) a cualquier salón. '
+            'Puedo calcular rutas a cualquier salón. '
             'Si el usuario pide ir a un salón, puedo calcular la ruta. '
             'Mensaje del usuario: $mensaje';
         
@@ -432,9 +438,8 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
     final isLargePhone = screenSize.width >= 400 && !isTablet;
 
     // Determinar qué SVG usar según la vista inicial
-    final svgPath = widget.initialView == 'exterior'
-        ? 'assets/Torres_ext.svg'
-        : 'assets/Torres_int.svg';
+    // Usar el mapa del piso que está en assets/mapas/
+    final svgPath = 'assets/mapas/TorrePiso1.svg';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -613,7 +618,7 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                       onElementTapped: _onElementoTocado,
                     ),
 
-                    // Dibujar la ruta sobre el mapa
+                    // Ruta dibujada
                     if (_ruta.isNotEmpty)
                       CustomPaint(
                         painter: RutaPainter(
@@ -627,30 +632,21 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                         ),
                       ),
 
-                    // Indicador de punto inicial
-                    Positioned(
-                      left: _puntoInicialX - 8,
-                      top: _puntoInicialY - 8,
-                      child: Container(
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 2,
+                    // Dibujar la ruta sobre el mapa
+                    // --- FLECHA DEL USUARIO (POSICIÓN + ORIENTACIÓN) ---
+                      Positioned(
+                        left: sensorService.posX,
+                        top: sensorService.posY,
+                        child: Transform.rotate(
+                          angle: sensorService.heading,
+                          child: const Icon(
+                            Icons.navigation,
+                            color: Colors.red,
+                            size: 32,
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
                         ),
                       ),
-                    ),
+
                   ],
                 ),
               ),
@@ -991,6 +987,7 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
     );
   }
 }
+
 
 /// Modelo para mensajes del chat
 class ChatMessage {
