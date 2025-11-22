@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../../../app/styles/app_styles.dart';
-import '../../data/models/student_model.dart';
-import 'course_history_page.dart';
+import '../../models/student_model.dart';
+import 'course_history_screen.dart';
 
-/// Página de lista de cursos
-class CoursesListPage extends StatelessWidget {
-  final List<CourseModel> courses;
+class CoursesListScreen extends StatelessWidget {
+  final List<Course> courses;
 
-  const CoursesListPage({
+  const CoursesListScreen({
     super.key,
     required this.courses,
   });
@@ -19,11 +17,11 @@ class CoursesListPage extends StatelessWidget {
     final isLargePhone = screenSize.width >= 400 && !isTablet;
 
     return Scaffold(
-      backgroundColor: AppStyles.surfaceColor,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Mis Cursos'),
-        backgroundColor: AppStyles.primaryColor,
-        foregroundColor: AppStyles.textOnDark,
+        title: Text('Mis Cursos'),
+        backgroundColor: const Color(0xFF1B38E3),
+        foregroundColor: Colors.white,
       ),
       body: ListView.builder(
         padding: EdgeInsets.all(isLargePhone ? 16 : (isTablet ? 20 : 14)),
@@ -48,7 +46,7 @@ class CoursesListPage extends StatelessWidget {
 
   Widget _buildSimpleCourseCard(
     BuildContext context,
-    CourseModel course,
+    Course course,
     bool isLargePhone,
     bool isTablet,
   ) {
@@ -58,16 +56,16 @@ class CoursesListPage extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CourseHistoryPage(course: course),
+            builder: (context) => CourseHistoryScreen(course: course),
           ),
         );
       },
-      borderRadius: BorderRadius.circular(AppStyles.borderRadiusM),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(
-            color: const Color(0xFFE0E0E0),
+            color: const Color(0xFFE0E0E0), 
             width: 1,
           ),
           borderRadius: BorderRadius.circular(12),
@@ -115,4 +113,6 @@ class CoursesListPage extends StatelessWidget {
       ),
     );
   }
+
 }
+

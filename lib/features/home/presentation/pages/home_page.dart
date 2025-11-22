@@ -288,6 +288,40 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Widget _buildInfoRow(
+    String label,
+    String value,
+    bool isLargePhone,
+    bool isTablet,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 2,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
+              color: AppStyles.textSecondary,
+            ),
+          ),
+        ),
+        Expanded(
+          flex: 3,
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
+              fontWeight: FontWeight.w500,
+              color: AppStyles.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   String _getCurrentDate() {
     final now = DateTime.now();
     const months = [
@@ -366,50 +400,239 @@ class _HomePageState extends State<HomePage> {
                   isLargePhone: isLargePhone,
                   isTablet: isTablet,
                 ),
-                // Fecha actual
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isLargePhone ? 20 : (isTablet ? 24 : 16),
-                    vertical: isLargePhone ? 12 : (isTablet ? 14 : 10),
-                  ),
-                  child: Text(
-                    _getCurrentDate(),
-                    style: TextStyle(
-                      fontSize: isLargePhone ? 16 : (isTablet ? 18 : 14),
-                      fontWeight: FontWeight.w500,
-                      color: AppStyles.textSecondary,
-                    ),
-                  ),
-                ),
-                // Lista de cursos
+                // Contenido scrollable
                 Expanded(
-                  child: ListView.builder(
+                  child: SingleChildScrollView(
                     padding: EdgeInsets.all(
-                      isLargePhone ? 16 : (isTablet ? 20 : 14),
+                      isLargePhone ? 20 : (isTablet ? 24 : 16),
                     ),
-                    itemCount: sortedCourses.length,
-                    itemBuilder: (context, index) {
-                      final course = sortedCourses[index];
-                      final statusInfo = _getCourseStatusUseCase.call(course);
-                      final attendanceStatus = _courseAttendanceStatus[course.name];
-
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          bottom: isLargePhone ? 16 : (isTablet ? 18 : 14),
-                        ),
-                        child: CourseCard(
-                          course: course,
-                          index: index,
-                          statusInfo: statusInfo,
-                          attendanceStatus: attendanceStatus,
-                          showMap: false,
-                          onToggleMap: (value) {},
-                          isLargePhone: isLargePhone,
-                          isTablet: isTablet,
-                        ),
-                      );
-                    },
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: isTablet ? 800 : double.infinity,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Sección de Información Académica
+                          Padding(
+                            padding: EdgeInsets.only(
+                              bottom: isLargePhone ? 24 : (isTablet ? 28 : 20),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Título con icono
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.school,
+                                      color: AppStyles.primaryColor,
+                                      size: isLargePhone
+                                          ? 26
+                                          : (isTablet ? 28 : 24),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Información Académica',
+                                      style: TextStyle(
+                                        fontSize: isLargePhone
+                                            ? 20
+                                            : (isTablet ? 22 : 18),
+                                        fontWeight: FontWeight.bold,
+                                        color: AppStyles.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(
+                                  height: isLargePhone
+                                      ? 22
+                                      : (isTablet ? 24 : 20),
+                                ),
+                                // Dirección Zonal
+                                _buildInfoRow(
+                                  'Dirección Zonal',
+                                  _student!.zonalAddress,
+                                  isLargePhone,
+                                  isTablet,
+                                ),
+                                SizedBox(
+                                  height: isLargePhone
+                                      ? 18
+                                      : (isTablet ? 20 : 16),
+                                ),
+                                // Escuela
+                                _buildInfoRow(
+                                  'Escuela',
+                                  _student!.school,
+                                  isLargePhone,
+                                  isTablet,
+                                ),
+                                SizedBox(
+                                  height: isLargePhone
+                                      ? 18
+                                      : (isTablet ? 20 : 16),
+                                ),
+                                // Carrera
+                                _buildInfoRow(
+                                  'Carrera',
+                                  _student!.career,
+                                  isLargePhone,
+                                  isTablet,
+                                ),
+                                SizedBox(
+                                  height: isLargePhone
+                                      ? 18
+                                      : (isTablet ? 20 : 16),
+                                ),
+                                // Correo Institucional
+                                _buildInfoRow(
+                                  'Correo Institucional',
+                                  _student!.institutionalEmail,
+                                  isLargePhone,
+                                  isTablet,
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Divider
+                          Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: Colors.grey[300],
+                          ),
+                          SizedBox(
+                            height: isLargePhone ? 24 : (isTablet ? 28 : 20),
+                          ),
+                          // Sección de Cursos Programados
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Título con icono y fecha
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.access_time,
+                                    color: AppStyles.primaryColor,
+                                    size: isLargePhone
+                                        ? 26
+                                        : (isTablet ? 28 : 24),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Cursos Programados Hoy',
+                                    style: TextStyle(
+                                      fontSize: isLargePhone
+                                          ? 20
+                                          : (isTablet ? 22 : 18),
+                                      fontWeight: FontWeight.bold,
+                                      color: AppStyles.textPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(
+                                height: isLargePhone ? 10 : (isTablet ? 12 : 8),
+                              ),
+                              Text(
+                                _getCurrentDate(),
+                                style: TextStyle(
+                                  fontSize: isLargePhone
+                                      ? 15
+                                      : (isTablet ? 16 : 14),
+                                  color: AppStyles.textSecondary,
+                                ),
+                              ),
+                              SizedBox(
+                                height: isLargePhone
+                                    ? 22
+                                    : (isTablet ? 24 : 20),
+                              ),
+                              // Lista de cursos ordenados por horario
+                              ...sortedCourses.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final course = entry.value;
+                                final statusInfo = _getCourseStatusUseCase.call(course);
+                                final attendanceStatus = _courseAttendanceStatus[course.name];
+                                
+                                return Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: isLargePhone
+                                        ? 18
+                                        : (isTablet ? 20 : 16),
+                                  ),
+                                  child: CourseCard(
+                                    course: course,
+                                    index: index,
+                                    statusInfo: statusInfo,
+                                    attendanceStatus: attendanceStatus,
+                                    isLargePhone: isLargePhone,
+                                    isTablet: isTablet,
+                                  ),
+                                );
+                              }),
+                              // Información adicional
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  top: isLargePhone ? 18 : (isTablet ? 20 : 16),
+                                ),
+                                child: Container(
+                                  padding: EdgeInsets.all(
+                                    isLargePhone ? 18 : (isTablet ? 20 : 16),
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppStyles.lightGrayBackground,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.location_on,
+                                            color: AppStyles.primaryColor,
+                                            size: isLargePhone
+                                                ? 21
+                                                : (isTablet ? 22 : 20),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              'Presiona el botón "Ver Ubicación en Mapa" en cada curso para navegar al salón',
+                                              style: TextStyle(
+                                                fontSize: isLargePhone
+                                                    ? 14
+                                                    : (isTablet ? 15 : 13),
+                                                color: AppStyles.textPrimary,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(
+                                        height: isLargePhone
+                                            ? 10
+                                            : (isTablet ? 12 : 8),
+                                      ),
+                                      Text(
+                                        'Total de cursos hoy: ${sortedCourses.length}',
+                                        style: TextStyle(
+                                          fontSize: isLargePhone
+                                              ? 14
+                                              : (isTablet ? 15 : 13),
+                                          fontWeight: FontWeight.bold,
+                                          color: AppStyles.textPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],

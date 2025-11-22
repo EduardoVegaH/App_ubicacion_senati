@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
-import '../../../../../app/styles/app_styles.dart';
-import '../../data/models/student_model.dart';
-import '../../domain/entities/attendance_entity.dart';
+import '../../models/student_model.dart';
 
-/// Página de historial de cursos
-class CourseHistoryPage extends StatefulWidget {
-  final CourseModel course;
+class CourseHistoryScreen extends StatefulWidget {
+  final Course course;
 
-  const CourseHistoryPage({
+  const CourseHistoryScreen({
     super.key,
     required this.course,
   });
 
   @override
-  State<CourseHistoryPage> createState() => _CourseHistoryPageState();
+  State<CourseHistoryScreen> createState() => _CourseHistoryScreenState();
 }
 
-class _CourseHistoryPageState extends State<CourseHistoryPage> {
+class _CourseHistoryScreenState extends State<CourseHistoryScreen> {
   AttendanceStatus? _selectedFilter; // null = todos, o un estado específico
 
   @override
@@ -29,12 +26,12 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
     if (history == null || history.records.isEmpty) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text(
+          title: Text(
             'Historial de asistencias',
             style: TextStyle(fontSize: 18),
           ),
-          backgroundColor: AppStyles.primaryColor,
-          foregroundColor: AppStyles.textOnDark,
+          backgroundColor: const Color(0xFF1B38E3),
+          foregroundColor: Colors.white,
         ),
         body: Center(
           child: Column(
@@ -45,7 +42,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
                 size: 64,
                 color: Colors.grey[400],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               Text(
                 'No hay historial disponible',
                 style: TextStyle(
@@ -60,7 +57,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
     }
 
     // Filtrar registros según el filtro seleccionado
-    List<AttendanceRecordEntity> filteredRecords = history.records;
+    List<AttendanceRecord> filteredRecords = history.records;
     if (_selectedFilter != null) {
       filteredRecords = history.records
           .where((record) => record.status == _selectedFilter)
@@ -68,18 +65,18 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
     }
 
     // Ordenar registros por fecha (más recientes primero)
-    final sortedRecords = List<AttendanceRecordEntity>.from(filteredRecords)
+    final sortedRecords = List<AttendanceRecord>.from(filteredRecords)
       ..sort((a, b) => b.date.compareTo(a.date));
 
     return Scaffold(
-      backgroundColor: AppStyles.surfaceColor,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Historial de asistencias',
           style: TextStyle(fontSize: 18),
         ),
-        backgroundColor: AppStyles.primaryColor,
-        foregroundColor: AppStyles.textOnDark,
+        backgroundColor: const Color(0xFF1B38E3),
+        foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
@@ -88,12 +85,12 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
             width: double.infinity,
             padding: EdgeInsets.all(isLargePhone ? 16 : (isTablet ? 18 : 14)),
             decoration: BoxDecoration(
-              color: AppStyles.primaryColor,
+              color: const Color(0xFF1B38E3),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
                   blurRadius: 2,
-                  offset: const Offset(0, 1),
+                  offset: Offset(0, 1),
                 ),
               ],
             ),
@@ -108,7 +105,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 // Nombre del docente (subtítulo)
                 Text(
                   widget.course.teacher,
@@ -144,7 +141,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Expanded(
                       child: InkWell(
                         onTap: () {
@@ -165,7 +162,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Expanded(
                       child: InkWell(
                         onTap: () {
@@ -186,7 +183,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Expanded(
                       child: InkWell(
                         onTap: () {
@@ -227,7 +224,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
                             size: 64,
                             color: Colors.grey[400],
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16),
                           Text(
                             'No hay registros con este filtro',
                             style: TextStyle(
@@ -236,7 +233,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8),
                           Text(
                             'Toca "Total" para ver todos los registros',
                             style: TextStyle(
@@ -278,7 +275,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
                             color: const Color(0xFF1B38E3),
                             size: 20,
                           ),
-                          const SizedBox(width: 12),
+                          SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               'Este historial te permite verificar tus asistencias registradas automáticamente.',
@@ -342,7 +339,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
               color: textColor,
             ),
           ),
-          const SizedBox(height: 2),
+          SizedBox(height: 2),
           Text(
             label,
             style: TextStyle(
@@ -360,7 +357,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
   }
 
   Widget _buildAttendanceCard(
-    AttendanceRecordEntity record,
+    AttendanceRecord record,
     bool isLargePhone,
     bool isTablet,
   ) {
@@ -407,7 +404,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
                     color: const Color(0xFF2C2C2C),
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 // Hora
                 Text(
                   '${record.startTime} - ${record.endTime}',
@@ -416,7 +413,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
                     color: const Color(0xFF757575),
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 // Badge de estado
                 Container(
                   padding: EdgeInsets.symmetric(
@@ -478,7 +475,7 @@ class _CourseHistoryPageState extends State<CourseHistoryPage> {
   }
 
   String _formatDate(DateTime date) {
-    const months = [
+    final months = [
       'Enero',
       'Febrero',
       'Marzo',
@@ -507,3 +504,4 @@ class StatusInfo {
     required this.icon,
   });
 }
+

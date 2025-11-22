@@ -21,94 +21,159 @@ class StudentInfoHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isLargePhone ? 20 : (isTablet ? 24 : 16)),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppStyles.primaryColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(0),
+          bottomRight: Radius.circular(0),
+        ),
       ),
-      child: Column(
+      padding: EdgeInsets.only(
+        left: isLargePhone ? 20 : (isTablet ? 24 : 16),
+        right: isLargePhone ? 20 : (isTablet ? 24 : 16),
+        top: isLargePhone ? 24 : (isTablet ? 28 : 20),
+        bottom: 20,
+      ),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          // Foto de perfil + estado
+          Stack(
+            clipBehavior: Clip.none,
             children: [
-              // Foto del estudiante
-              CircleAvatar(
-                radius: isLargePhone ? 30 : (isTablet ? 32 : 28),
-                backgroundColor: AppStyles.surfaceColor,
-                backgroundImage: student.photoUrl.isNotEmpty
-                    ? NetworkImage(student.photoUrl)
-                    : null,
+              Container(
+                width: isLargePhone ? 64 : (isTablet ? 70 : 60),
+                height: isLargePhone ? 64 : (isTablet ? 70 : 60),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  border: Border.all(color: Colors.white, width: 2),
+                  image: student.photoUrl.isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(student.photoUrl),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
+                ),
                 child: student.photoUrl.isEmpty
                     ? Icon(
                         Icons.person,
-                        size: isLargePhone ? 30 : (isTablet ? 32 : 28),
-                        color: AppStyles.primaryColor,
+                        size: isLargePhone
+                            ? 42
+                            : (isTablet ? 45 : 40),
+                        color: AppStyles.textSecondary,
                       )
                     : null,
               ),
-              const SizedBox(width: 12),
-              // Nombre y ID
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      student.name,
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 20 : (isTablet ? 22 : 18),
-                        fontWeight: FontWeight.bold,
-                        color: AppStyles.textOnDark,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+              // Estado abajo derecha
+              Positioned(
+                bottom: -6,
+                right: -6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: campusStatus == "Dentro del campus"
+                        ? Colors.green
+                        : Colors.red,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    campusStatus == "Dentro del campus"
+                        ? "Presente"
+                        : "Ausente",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'ID: ${student.id}',
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 14 : (isTablet ? 15 : 13),
-                        color: AppStyles.textOnDark.withOpacity(0.9),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          // Estado del campus
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: isLargePhone ? 12 : (isTablet ? 14 : 10),
-              vertical: isLargePhone ? 8 : (isTablet ? 10 : 6),
-            ),
-            decoration: BoxDecoration(
-              color: AppStyles.surfaceColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
+          SizedBox(width: isLargePhone ? 14 : (isTablet ? 16 : 12)),
+          // Nombre, ID y Semestre
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  campusStatus == "Dentro del campus"
-                      ? Icons.location_on
-                      : Icons.location_off,
-                  size: isLargePhone ? 18 : (isTablet ? 20 : 16),
-                  color: AppStyles.textOnDark,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        student.name,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isLargePhone
+                              ? 17
+                              : (isTablet ? 18 : 16),
+                          fontWeight: FontWeight.bold,
+                          height: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    SizedBox(
+                      width: isLargePhone ? 8 : (isTablet ? 10 : 6),
+                    ),
+                    // Icono de menú (a la derecha, a la altura del nombre)
+                    Builder(
+                      builder: (context) => GestureDetector(
+                        onTap: () {
+                          Scaffold.of(context).openDrawer();
+                        },
+                        child: Transform.translate(
+                          offset: const Offset(0, -2),
+                          child: const Icon(
+                            Icons.menu,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 6),
+                SizedBox(
+                  height: isLargePhone ? 6 : (isTablet ? 8 : 5),
+                ),
                 Text(
-                  campusStatus,
+                  'ID: ${student.id}',
                   style: TextStyle(
-                    fontSize: isLargePhone ? 14 : (isTablet ? 15 : 13),
-                    fontWeight: FontWeight.w500,
-                    color: AppStyles.textOnDark,
+                    color: Colors.white70,
+                    fontSize: isLargePhone
+                        ? 14
+                        : (isTablet ? 15 : 13),
+                    height: 1.2,
+                  ),
+                ),
+                SizedBox(
+                  height: isLargePhone ? 8 : (isTablet ? 10 : 6),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    student.semester,
+                    style: TextStyle(
+                      color: AppStyles.primaryColor,
+                      fontSize: isLargePhone
+                          ? 13
+                          : (isTablet ? 14 : 12),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],

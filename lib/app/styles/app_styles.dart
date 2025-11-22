@@ -26,14 +26,17 @@ class AppStyles {
   // 🎨 COLORES DE ESTADO
   // ============================================
   
-  /// Color de éxito
+  /// Color de éxito (azul celeste para presente/completado)
   static const Color successColor = Color(0xFF3D79FF);
   
-  /// Color de advertencia
-  static const Color warningColor = Color(0xFFCBA761);
+  /// Color de advertencia (naranja)
+  static const Color warningColor = Colors.orange;
   
-  /// Color de error
+  /// Color de error (rojo oscuro)
   static const Color errorColor = Color(0xFF622222);
+  
+  /// Color para tardanza (azul oscuro)
+  static const Color lateColor = Color(0xFF4864A2);
   
   /// Color verde (presente/dentro)
   static const Color greenStatus = Colors.green;
@@ -54,11 +57,17 @@ class AppStyles {
   // 🎨 COLORES DE TEXTO
   // ============================================
   
-  /// Color de texto principal
-  static const Color textPrimary = Color(0xFF212121);
+  /// Color de texto principal (gris oscuro)
+  static const Color textPrimary = Color(0xFF2C2C2C);
   
-  /// Color de texto secundario
+  /// Color de texto secundario (gris medio)
   static const Color textSecondary = Color(0xFF757575);
+  
+  /// Color de borde (gris claro)
+  static const Color borderColor = Color(0xFFE0E0E0);
+  
+  /// Color de fondo gris claro
+  static const Color lightGrayBackground = Color(0xFFF5F5F5);
   
   /// Color de texto en fondos oscuros
   static const Color textOnDark = Colors.white;
