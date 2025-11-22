@@ -86,6 +86,7 @@ flutter:
   assets:
     - assets/senatilogo.png
     - assets/mapas/
+    - assets/fotosalon/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -7,6 +7,7 @@ import '../repos/graph_repository.dart';
 import '../services/pathfinding_service.dart';
 import '../config/graph_edges_config.dart';
 import 'map_overlay_painter.dart';
+import 'salon_photo_popup.dart';
 
 /// Pantalla de navegación que muestra el mapa SVG con la ruta trazada
 class MapNavigatorScreen extends StatefulWidget {
@@ -30,7 +31,7 @@ class MapNavigatorScreen extends StatefulWidget {
   State<MapNavigatorScreen> createState() => _MapNavigatorScreenState();
 }
 
-class _MapNavigatorScreenState extends State<MapNavigatorScreen> {
+class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProviderStateMixin {
   final GraphRepository _graphRepository = GraphRepository();
   final TransformationController _transformationController =
       TransformationController();
@@ -46,11 +47,24 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> {
   
   // Preparado para futuro: nodo actual del usuario en tiempo real
   MapNode? _currentUserNode;
+  
+  // Control para mostrar/ocultar la foto del salón superpuesta sobre el mapa
+  bool _showPhoto = false;
+  
+  // Controlador de animación para la foto
+  late AnimationController _photoAnimationController;
 
   @override
   void initState() {
     super.initState();
     _transformationController.addListener(_onTransformChanged);
+    
+    // Inicializar controlador de animación para la foto
+    _photoAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    
     _loadMapAndCalculateRoute();
   }
 
@@ -58,6 +72,7 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> {
   void dispose() {
     _transformationController.removeListener(_onTransformChanged);
     _transformationController.dispose();
+    _photoAnimationController.dispose();
     super.dispose();
   }
 
@@ -70,6 +85,75 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> {
         // Forzar rebuild del overlay para que se actualice con la nueva transformación
       });
     }
+  }
+
+  /// Muestra la foto del salón con animación desde abajo
+  void _showSalonPhoto() {
+    // Solo mostrar si existe una imagen para este salón
+    if (!_hasSalonImage()) {
+      print('⚠️ No hay imagen disponible para el salón: ${widget.objetivoSalonId}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No hay foto disponible para ${widget.salonNombre ?? widget.objetivoSalonId}'),
+          duration: const Duration(seconds: 2),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    print('📸 Mostrando foto del salón con animación');
+    setState(() {
+      _showPhoto = true;
+    });
+    _photoAnimationController.forward();
+  }
+
+  /// Oculta la foto del salón con animación hacia abajo
+  void _hideSalonPhoto() {
+    print('❌ Ocultando foto del salón');
+    _photoAnimationController.reverse().then((_) {
+      if (mounted) {
+        setState(() {
+          _showPhoto = false;
+        });
+      }
+    });
+  }
+
+  /// Obtiene la ruta de la imagen del salón basada en el ID del salón
+  String _getSalonImagePath() {
+    // Normalizar el ID del salón para construir la ruta
+    String salonId = widget.objetivoSalonId.toLowerCase().trim();
+    
+    // Remover prefijos comunes como "salon-"
+    if (salonId.startsWith('salon-')) {
+      salonId = salonId.substring(6); // Remover "salon-"
+    }
+    
+    // Construir la ruta de la imagen
+    // Formato esperado: assets/fotosalon/foto-salon-{TORRE}-{NUMERO}.png
+    // Ejemplo: "B-200" -> "foto-salon-b-200.png"
+    // Ejemplo: "salon-B-200" -> "foto-salon-b-200.png"
+    final imagePath = 'assets/fotosalon/foto-salon-$salonId.png';
+    
+    print('🖼️ Ruta de imagen calculada: $imagePath para salón: ${widget.objetivoSalonId}');
+    
+    return imagePath;
+  }
+
+  /// Verifica si existe una imagen para el salón actual
+  /// Por ahora solo existe foto-salon-b-200.png
+  bool _hasSalonImage() {
+    String salonId = widget.objetivoSalonId.toLowerCase().trim();
+    if (salonId.startsWith('salon-')) {
+      salonId = salonId.substring(6);
+    }
+    
+    // Lista de salones que tienen foto (por ahora solo B-200)
+    final salonesConFoto = ['b-200'];
+    
+    return salonesConFoto.contains(salonId);
   }
 
   Future<void> _loadMapAndCalculateRoute() async {
@@ -94,10 +178,7 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> {
       if (_allNodes.isEmpty) {
         throw Exception(
           'No se encontraron nodos para el piso $pisoACargar.\n\n'
-          'Por favor, inicializa el grafo primero:\n'
-          '1. Abre el menú lateral\n'
-          '2. Ve a "Administración de Grafo"\n'
-          '3. Presiona "Inicializar Todos los Pisos"',
+          'Por favor, contacta al administrador para inicializar el grafo.',
         );
       }
 
@@ -441,23 +522,6 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> {
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 32),
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                // Opcional: abrir directamente la pantalla de admin
-                              },
-                              icon: const Icon(Icons.settings),
-                              label: const Text('Ir a Administración de Grafo'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1B38E3),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 12,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
                             TextButton(
                               onPressed: _loadMapAndCalculateRoute,
                               child: const Text('Reintentar'),
@@ -539,14 +603,81 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> {
                         ),
                       ),
 
-                    // Controles de zoom flotantes
+                    // Componente separado para el pop-up de la foto (fuera del Stack del mapa)
+                    if (_showPhoto)
+                      Positioned.fill(
+                        child: SalonPhotoPopup(
+                          imagePath: _getSalonImagePath(),
+                          onClose: _hideSalonPhoto,
+                          animationController: _photoAnimationController,
+                        ),
+                      ),
+
+                    // Controles de zoom flotantes (deben estar DESPUÉS del pop-up para quedar por encima)
                     Positioned(
                       right: 16,
-                      bottom: 100,
+                      bottom: _showPhoto ? 400 : 220, // Ajustar posición cuando la imagen está visible
                       child: Builder(
                         builder: (context) => Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            // Botón de cámara (aparece siempre en cada mapa de clases)
+                            Material(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(28),
+                              elevation: 4,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(28),
+                                onTap: () {
+                                  print('📸 Botón cámara presionado');
+                                  if (_showPhoto) {
+                                    _hideSalonPhoto();
+                                  } else {
+                                    // Si hay imagen, mostrarla; si no, mostrar mensaje
+                                    if (_hasSalonImage()) {
+                                      _showSalonPhoto();
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('No hay foto disponible para ${widget.salonNombre ?? widget.objetivoSalonId}'),
+                                          duration: const Duration(seconds: 2),
+                                          backgroundColor: Colors.orange,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                child: Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(28),
+                                    border: Border.all(
+                                      color: const Color(0xFF1B38E3).withOpacity(0.2),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(28),
+                                    child: Image.asset(
+                                      'assets/logoappsenati.png', // Cambia esta ruta por la imagen que quieras usar
+                                      width: 56,
+                                      height: 56,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        // Si la imagen no existe, mostrar el ícono como fallback
+                                        return const Icon(
+                                          Icons.photo_camera,
+                                          color: Color(0xFF1B38E3),
+                                          size: 28,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
                             // Botón zoom in
                             Material(
                               color: Colors.white,

@@ -11,10 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import 'courses_list_screen.dart';
 import '../bathrooms/bathroom_status_screen.dart';
 import 'friends_screen.dart';
-import '../chatbot/chatbot_screen.dart';
 import '../widgets/floating_chatbot.dart';
-import '../admin/salones_admin_screen.dart';
-import '../admin/graph_admin_screen.dart';
 import '../../navigation_map/ui/map_navigator_screen.dart';
 import '../../navigation_map/utils/salon_helper.dart';
 
@@ -986,7 +983,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Cursos Programados Hoy',
+                                    'Cursos Programados',
                                     style: TextStyle(
                                       fontSize: isLargePhone
                                           ? 20
@@ -1762,75 +1759,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       isTablet: isTablet,
                     ),
 
-                    // Separador
-                    Divider(
-                      color: Colors.white.withOpacity(0.2),
-                      thickness: 1,
-                      height: 1,
-                      indent: isLargePhone ? 56 : (isTablet ? 60 : 52),
-                    ),
-
-                    // Botón Asistente Virtual (Chatbot)
-                    _buildDrawerItem(
-                      context: context,
-                      icon: Icons.smart_toy,
-                      title: 'Asistente Virtual',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ChatbotScreen(),
-                          ),
-                        );
-                      },
-                      isLargePhone: isLargePhone,
-                      isTablet: isTablet,
-                    ),
-
-                    // Separador
-                    Divider(
-                      color: Colors.white.withOpacity(0.2),
-                      thickness: 1,
-                      height: 1,
-                      indent: isLargePhone ? 56 : (isTablet ? 60 : 52),
-                    ),
-
-                    // Botón Administración de Salones
-                    _buildDrawerItem(
-                      context: context,
-                      icon: Icons.admin_panel_settings,
-                      title: 'Administración de Salones',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SalonesAdminScreen(),
-                          ),
-                        );
-                      },
-                      isLargePhone: isLargePhone,
-                      isTablet: isTablet,
-                    ),
-
-                    // Botón Administración de Grafo
-                    _buildDrawerItem(
-                      context: context,
-                      icon: Icons.map,
-                      title: 'Administración de Grafo',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const GraphAdminScreen(),
-                          ),
-                        );
-                      },
-                      isLargePhone: isLargePhone,
-                      isTablet: isTablet,
-                    ),
                   ],
                 ),
               ),
