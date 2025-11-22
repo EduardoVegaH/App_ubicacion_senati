@@ -11,11 +11,12 @@ import 'package:geolocator/geolocator.dart';
 import 'courses_list_screen.dart';
 import '../bathrooms/bathroom_status_screen.dart';
 import 'friends_screen.dart';
-import '../widgets/tower_map_viewer.dart';
-import '../Navigation/navigation_map_screen.dart';
 import '../chatbot/chatbot_screen.dart';
 import '../widgets/floating_chatbot.dart';
 import '../admin/salones_admin_screen.dart';
+import '../admin/graph_admin_screen.dart';
+import '../../navigation_map/ui/map_navigator_screen.dart';
+import '../../navigation_map/utils/salon_helper.dart';
 
 class LatLng {
   final double latitude;
@@ -241,8 +242,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               endTime: '5:00 PM',
               duration: '3:40 PM - 5:00 PM',
               teacher: 'GONZALES LEON, JACQUELINE CORAL',
-              locationCode: 'IND - TORRE C 60TC - 604',
-              locationDetail: 'Torre C, Piso 6, Salón 604',
+              locationCode: 'IND - TORRE C 60TC - 203',
+              locationDetail: 'Torre C, Piso 2, Salón 203',
               history: _generateSampleHistory(
                 'DESARROLLO HUMANO',
                 '3:40 PM',
@@ -259,8 +260,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               endTime: '9:15 AM',
               duration: '7:00 AM - 9:15 AM',
               teacher: 'MANSILLA NEYRA, JUAN RAMON',
-              locationCode: 'IND - TORRE A 60TA - 604',
-              locationDetail: 'Torre A, Piso 6, Salón 604',
+              locationCode: 'IND - TORRE A 60TA - 202',
+              locationDetail: 'Torre A, Piso 2, Salón 202',
               history: _generateSampleHistory(
                 'REDES DE COMPUTADORAS',
                 '7:00 AM',
@@ -1389,9 +1390,33 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             height: isLargePhone ? 48 : (isTablet ? 50 : 44),
             child: ElevatedButton.icon(
               onPressed: () {
-                setState(() {
-                  _showMap[index] = !showMap;
-                });
+                // Extraer información del salón
+                final salonId = SalonHelper.extractSalonId(
+                  course.locationDetail,
+                  course.locationCode,
+                );
+                final piso = SalonHelper.extractPisoFromLocation(
+                  course.locationDetail,
+                  course.locationCode,
+                );
+                
+                // Debug: mostrar información extraída
+                print('📍 [StudentHomeScreen] Navegando a:');
+                print('   - SalonId: $salonId');
+                print('   - Piso: $piso');
+                print('   - LocationDetail: ${course.locationDetail}');
+                print('   - LocationCode: ${course.locationCode}');
+                
+                // Abrir pantalla de navegación
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => MapNavigatorScreen(
+                      objetivoSalonId: salonId,
+                      piso: piso,
+                      salonNombre: course.locationDetail,
+                    ),
+                  ),
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1B38E3),
@@ -1401,9 +1426,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 ),
                 elevation: 0,
               ),
-              icon: Icon(showMap ? Icons.arrow_upward : Icons.send),
+              icon: const Icon(Icons.navigation),
               label: Text(
-                showMap ? 'Ocultar Mapa' : 'Ver Ubicación en Mapa',
+                'Navegar en Tiempo Real',
                 style: TextStyle(
                   fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
                 ),
@@ -1460,50 +1485,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                  TowerMapViewer(
-                    height: isLargePhone ? 220 : (isTablet ? 250 : 200),
-                    showControls: true,
-                  ),
-                  Padding(
-                    padding: EdgeInsets.all(
-                      isLargePhone ? 14 : (isTablet ? 16 : 12),
-                    ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: isLargePhone ? 48 : (isTablet ? 50 : 44),
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => NavigationMapScreen(
-                                locationName: course.name,
-                                locationDetail: course.locationDetail,
-                                initialView:
-                                    'interior', // Por defecto mostrar vista interior para navegación
-                              ),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(
-                            0xFF3D79FF,
-                          ), // Azul celeste igual que "Presente"
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        icon: const Icon(Icons.send),
-                        label: Text(
-                          'Navegar Ahora (Tiempo Real)',
-                          style: TextStyle(
-                            fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
-                          ),
-                        ),
-                      ),
                     ),
                   ),
                 ],
@@ -1826,6 +1807,24 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => const SalonesAdminScreen(),
+                          ),
+                        );
+                      },
+                      isLargePhone: isLargePhone,
+                      isTablet: isTablet,
+                    ),
+
+                    // Botón Administración de Grafo
+                    _buildDrawerItem(
+                      context: context,
+                      icon: Icons.map,
+                      title: 'Administración de Grafo',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const GraphAdminScreen(),
                           ),
                         );
                       },

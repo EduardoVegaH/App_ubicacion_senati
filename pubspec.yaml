@@ -52,6 +52,9 @@ dependencies:
   # Para chatbot de IA (Google Gemini)
   google_generative_ai: ^0.4.7
 
+  # Para parsear XML/SVG
+  xml: ^6.4.2
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8

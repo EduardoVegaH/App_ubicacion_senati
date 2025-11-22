@@ -1,0 +1,89 @@
+<svg width="2117" height="1729" viewBox="0 0 2117 1729" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="2117" height="1729" fill="#F5F5F5"/>
+<g id="map_int_piso2">
+<rect width="2117" height="1729" fill="#B5B5B5"/>
+<g id="Plus">
+<path id="plus_room12" d="M1035.5 1464.5H991.5V1467.5L997 1641.5L1141.5 1632L1137.5 1562H1109.5V1418L1035.5 1421.5V1464.5Z" fill="#EAEAEA" stroke="black"/>
+<rect id="plus_room11" x="217.757" y="1456.66" width="143.256" height="54.8431" transform="rotate(-6 217.757 1456.66)" fill="#898989" stroke="black"/>
+<rect id="plus_room10" x="221.252" y="1521.49" width="261.87" height="105.662" transform="rotate(-6 221.252 1521.49)" fill="#EAEAEA" stroke="black"/>
+<rect id="plus_room09" x="1718.55" y="1422.85" width="243.011" height="100.627" transform="rotate(1.3145 1718.55 1422.85)" fill="#EAEAEA" stroke="black"/>
+<path id="plus_room08" d="M1132.09 1415.76L1118 1415.94L1119.79 1555.93L1193.78 1554.99L1191.99 1415L1178.91 1415.17L1179.31 1446.8L1132.5 1447.39L1132.09 1415.76Z" fill="#757575" stroke="black"/>
+<rect id="plus_room07" x="1813.41" y="1364.99" width="129.962" height="50.1821" transform="rotate(1 1813.41 1364.99)" fill="#757575" stroke="black"/>
+<path id="plus_room06" d="M603 1478L572.5 1481L581 1588.5L649.5 1578.5L640 1462.5L603 1467V1478Z" fill="#757575" stroke="black"/>
+<path id="plus_room05" d="M533 1495.5L501.5 1500L507.5 1596L573.5 1588L564 1484L533 1487.5V1495.5Z" fill="#757575" stroke="black"/>
+<path id="plus_room04" d="M866.5 1486.5L871 1614H881.5V1647L990 1641.5L982 1460H961.5V1416L886 1420.5V1437H877V1486.5H866.5Z" fill="#EAEAEA" stroke="black"/>
+<path id="plus_room03" d="M1262.5 1623.5L1151 1630V1568L1203 1565V1558V1408.5H1246.5V1421H1258V1464H1268.5L1273 1592.5H1262.5V1623.5Z" fill="#757575" stroke="black"/>
+<path id="plus_room02" d="M940.5 752H898.5L904 891H915.5V949L1254 936.5L1248.5 752H1237H1188V792.5H1160V839.5L946.5 846.5L940.5 752Z" fill="#EAEAEA" stroke="black"/>
+<g id="plus_room01">
+<path d="M1573 1514V1411H1604V1431.5H1628.5V1514H1573Z" fill="#757575"/>
+<path d="M1669.5 1431.5H1647.5V1523.5H1702V1411H1669.5V1431.5Z" fill="#757575"/>
+<path d="M1573 1514V1411H1604V1431.5H1628.5V1514H1573Z" stroke="black"/>
+<path d="M1669.5 1431.5H1647.5V1523.5H1702V1411H1669.5V1431.5Z" stroke="black"/>
+</g>
+</g>
+<g id="Salones">
+<path id="salon-C-204" d="M1952 98.5L1646 80V333.5L1952 342.5V98.5Z" fill="#EAEAEA" stroke="black"/>
+<path id="salon-C-203" d="M1959 360.573L1663.5 352V421.538H1627V530.608H1663.5V583H1959V360.573Z" fill="#EAEAEA" stroke="black"/>
+<path id="salon-C-202" d="M1947 596H1644.5V626.876H1630V730.46H1659V845H1947V596Z" fill="#EAEAEA" stroke="black"/>
+<path id="salon-C-201" d="M1662.5 898V862H1945V1089.5H1662.5V1004H1622V907.5H1633V898H1662.5Z" fill="#EAEAEA" stroke="black"/>
+<path id="salon-C-200" d="M1945 1098.5H1624V1173.5H1658.5V1235.5H1624V1262.5H1658.5V1346.5H1945V1098.5Z" fill="#EAEAEA" stroke="black"/>
+<path id="salon-B-202" d="M1211.5 291L1204 110.5L876 120L879 278.5H920V330.5L1187.5 321V291H1211.5Z" fill="#EAEAEA" stroke="black"/>
+<path id="salon-B-201" d="M1193.46 325.793L920.034 338.12V422.44H898V543.249H920.034V561L1219 543.249V311H1193.46V325.793Z" fill="#EAEAEA" stroke="black"/>
+<path id="salon-B-200" d="M944.5 966V1050H917L926 1300.5L1250.5 1287L1237.5 956.5L944.5 966Z" fill="#EAEAEA" stroke="black"/>
+<path id="salon-A-204" d="M461.5 102L130 118.5L148 364.5L481.5 337L461.5 102Z" fill="#EAEAEA" stroke="black"/>
+<path id="salon-A-203" d="M454 351.5L151.5 373.5L173.5 626.5L481.5 599.5V563H510.5L499.5 430H463.5L454 351.5Z" fill="#EAEAEA" stroke="black"/>
+<path id="salon-A-202" d="M505.5 617L171 645.5L191 899L501 867.5L492.5 779.5L520 775.5L505.5 617Z" fill="#EAEAEA" stroke="black"/>
+<path id="salon-A-201" d="M498 882L192.5 913.5L208.5 1161L521.5 1126.5L514.5 1049.5L547.5 1045.5L541 973.5L507.5 978L498 882Z" fill="#EAEAEA" stroke="black"/>
+<path id="salon-A-200" d="M230.5 1447.5L211 1182L565 1141L581.5 1327L543.5 1331L549 1411.5L230.5 1447.5Z" fill="#EAEAEA" stroke="black"/>
+</g>
+<g id="Asensores">
+<rect id="Asensor06" x="908.517" y="572.571" width="68.4814" height="72.3807" transform="rotate(-2 908.517 572.571)" fill="#EAEAEA" stroke="black"/>
+<rect id="Asensor05" x="962.517" y="758.907" width="68.4814" height="72.3807" transform="rotate(-2 962.517 758.907)" fill="#EAEAEA" stroke="black"/>
+<rect id="Asensor04" x="1040.52" y="754.907" width="68.4814" height="72.3807" transform="rotate(-2 1040.52 754.907)" fill="#EAEAEA" stroke="black"/>
+<rect id="Asensor03" x="987.517" y="567.907" width="68.4814" height="72.3807" transform="rotate(-2 987.517 567.907)" fill="#EAEAEA" stroke="black"/>
+<rect id="Asensor02" x="1066.52" y="565.907" width="68.4814" height="72.3807" transform="rotate(-2 1066.52 565.907)" fill="#EAEAEA" stroke="black"/>
+<rect id="Asensor01" x="1147.52" y="563.907" width="68.4814" height="72.3807" transform="rotate(-2 1147.52 563.907)" fill="#EAEAEA" stroke="black"/>
+</g>
+<g id="Ruta">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M524.5 181L569 674.5L847 663.5L827.5 114L862.5 113L882 665L1584.5 639L1593 81L1622.5 81.5L1619.5 345L1656.5 346L1655.5 415.5H1618L1616.5 535L1678.5 535.5V572H1655V591.5H1615.5L1614 737.5H1653.5V829H1612.5L1610 1012H1653.5V1026H1674.5V1072.5H1653.5V1092H1608.5L1606.5 1273.5H1650.5V1364L1805 1367L1804 1416.5L1716.5 1415V1405L1284.5 1398.5L895 1412.5L641 1443.5L642.5 1456.5L528 1470L529 1481L373.5 1495.5L367 1442.5L554 1420L552 1390.5L525 1393L522 1350.5L548 1348L547 1336L591.5 1332L574 1129.5L529.5 1134.5L520 1055L566 1048.5L552 891L510 894.5L500 785.5L541.5 779L509.5 420.5H467.5L460.5 352L502.5 348.5L488.5 184.5L524.5 181ZM849 742L577.5 752H576L632.5 1365.5L870.5 1336L849 742ZM1583 715.5L885 742L892.755 969.226L948 967.5L953 1239L902.039 1241.25L905 1328L1267 1315L1574.5 1320L1583 715.5ZM934.5 1049.65H895.5L895.527 1050.44L900.998 1210.75L939.5 1209L934.5 1049.65Z" fill="white"/>
+</g>
+<g id="NODES">
+<circle id="node37" cx="1063" cy="697" r="10" fill="#0066FF"/>
+<circle id="node36" cx="558" cy="713" r="10" fill="#0066FF"/>
+<circle id="node35" cx="868" cy="703" r="10" fill="#0066FF"/>
+<circle id="node34" cx="501" cy="828" r="10" fill="#0066FF"/>
+<circle id="node33" cx="568" cy="818" r="10" fill="#0066FF"/>
+<circle id="node31" cx="520" cy="1094" r="10" fill="#0066FF"/>
+<circle id="node30" cx="588" cy="1084" r="10" fill="#0066FF"/>
+<circle id="node29" cx="883" cy="1222" r="10" fill="#0066FF"/>
+<circle id="node28" cx="893" cy="1374" r="10" fill="#0066FF"/>
+<circle id="node27" cx="621" cy="1409" r="10" fill="#0066FF"/>
+<circle id="node26" cx="530" cy="1448" r="10" fill="#0066FF"/>
+<circle id="node25" cx="877" cy="1005" r="10" fill="#0066FF"/>
+<circle id="node24" cx="942" cy="1005" r="10" fill="#0066FF"/>
+<circle id="node23" cx="843" cy="121" r="10" fill="#0066FF"/>
+<circle id="node-salon-A-200" cx="520" cy="1374" r="10" fill="#0066FF"/>
+<circle id="node21" cx="616" cy="1364" r="10" fill="#0066FF"/>
+<circle id="node20" cx="370" cy="1466" r="10" fill="#0066FF"/>
+<circle id="node19" cx="510" cy="191" r="10" fill="#0066FF"/>
+<circle id="node18" cx="462" cy="387" r="10" fill="#0066FF"/>
+<circle id="node17" cx="526" cy="380" r="10" fill="#0066FF"/>
+<circle id="node16" cx="1598" cy="677" r="10" fill="#0066FF"/>
+<circle id="node15" cx="1656" cy="780" r="10" fill="#0066FF"/>
+<circle id="node14" cx="1598" cy="780" r="10" fill="#0066FF"/>
+<circle id="node13" cx="1676" cy="1052" r="10" fill="#0066FF"/>
+<circle id="node12" cx="1598" cy="1052" r="10" fill="#0066FF"/>
+<circle id="node11" cx="1648" cy="1311" r="10" fill="#0066FF"/>
+<circle id="node10" cx="1598" cy="1311" r="10" fill="#0066FF"/>
+<circle id="node09" cx="1598" cy="1364" r="10" fill="#0066FF"/>
+<circle id="node08" cx="1261" cy="1354" r="10" fill="#0066FF"/>
+<circle id="node07" cx="1765" cy="1391" r="10" fill="#0066FF"/>
+<circle id="node06" cx="1676" cy="553" r="10" fill="#0066FF"/>
+<circle id="node05" cx="1608" cy="560" r="10" fill="#0066FF"/>
+<circle id="node04" cx="1656" cy="380" r="10" fill="#0066FF"/>
+<circle id="node03" cx="1608" cy="384" r="10" fill="#0066FF"/>
+<circle id="node02" cx="1608" cy="91" r="10" fill="#0066FF"/>
+<circle id="node-salon-B-200" cx="952" cy="1222" r="10" fill="#0066FF"/>
+</g>
+</g>
+</svg>

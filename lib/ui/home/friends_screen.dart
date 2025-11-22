@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/friend_model.dart';
 import '../../services/friends_service.dart';
-import '../widgets/tower_map_viewer.dart';
-import '../Navigation/navigation_map_screen.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
@@ -610,45 +608,6 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                        TowerMapViewer(
-                          height: isLargePhone ? 200 : (isTablet ? 250 : 180),
-                          showControls: true,
-                        ),
-                        Padding(
-                          padding: EdgeInsets.all(isLargePhone ? 12 : (isTablet ? 14 : 10)),
-                          child: SizedBox(
-                            width: double.infinity,
-                            height: isLargePhone ? 44 : (isTablet ? 48 : 40),
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => NavigationMapScreen(
-                                      locationName: friend.name,
-                                      locationDetail: 'Lat: ${friend.latitude!.toStringAsFixed(6)}, Lon: ${friend.longitude!.toStringAsFixed(6)}',
-                                      initialView: 'interior', // Por defecto mostrar vista interior para navegación
-                                    ),
-                                  ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF3D79FF),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 0,
-                              ),
-                              icon: const Icon(Icons.send),
-                              label: Text(
-                                'Navegar Ahora (Tiempo Real)',
-                                style: TextStyle(
-                                  fontSize: isLargePhone ? 14 : (isTablet ? 15 : 13),
-                                ),
-                              ),
-                            ),
                           ),
                         ),
                       ],
