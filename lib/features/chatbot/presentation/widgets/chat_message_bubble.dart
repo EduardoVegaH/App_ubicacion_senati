@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../../../app/styles/app_styles.dart';
 import '../../../../../app/styles/app_shadows.dart';
-import '../../data/models/chat_message.dart';
+import '../../domain/entities/chat_message_entity.dart';
 import 'chat_avatar.dart';
 
 /// Burbuja de mensaje de chat
 class ChatMessageBubble extends StatelessWidget {
-  final ChatMessage message;
+  final ChatMessageEntity message;
   final bool isLargePhone;
   final bool isTablet;
 

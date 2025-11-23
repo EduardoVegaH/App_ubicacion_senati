@@ -7,6 +7,7 @@ import '../../../navigation/presentation/pages/map_navigator_page.dart';
 import '../../../../core/widgets/primary_button/primary_button.dart';
 import '../../../../../app/styles/text_styles.dart';
 import '../../../../../app/styles/app_spacing.dart';
+import '../../../../../app/styles/app_styles.dart';
 import '../../../../core/widgets/status_badge/status_badge.dart';
 
 /// Widget de tarjeta de curso con diseño del código antiguo
@@ -51,7 +52,7 @@ class _CourseCardState extends State<CourseCard> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(
-          color: isFinished ? const Color(0xFFBDBDBD) : const Color(0xFFE0E0E0),
+          color: isFinished ? AppStyles.greyMedium : AppStyles.greyLight,
           width: 1,
         ),
         borderRadius: BorderRadius.circular(12),
@@ -91,7 +92,7 @@ class _CourseCardState extends State<CourseCard> {
               Icon(
                 Icons.access_time,
                 size: isLargePhone ? 21 : (isTablet ? 22 : 20),
-                color: const Color(0xFF757575),
+                color: AppStyles.textSecondary,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -123,7 +124,7 @@ class _CourseCardState extends State<CourseCard> {
               Icon(
                 Icons.person,
                 size: isLargePhone ? 21 : (isTablet ? 22 : 20),
-                color: const Color(0xFF757575),
+                color: AppStyles.textSecondary,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -151,7 +152,7 @@ class _CourseCardState extends State<CourseCard> {
               Icon(
                 Icons.location_on,
                 size: isLargePhone ? 21 : (isTablet ? 22 : 20),
-                color: const Color(0xFF757575),
+                color: AppStyles.textSecondary,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -192,22 +193,20 @@ class _CourseCardState extends State<CourseCard> {
             SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
             Container(
               decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFE0E0E0)),
+                border: Border.all(color: AppStyles.greyLight),
                 borderRadius: BorderRadius.circular(12),
-                color: const Color(0xFFF5F5F5),
+                color: AppStyles.lightGrayBackground,
               ),
               child: Column(
                 children: [
                   Padding(
-                    padding: EdgeInsets.all(
-                      isLargePhone ? 14 : (isTablet ? 16 : 12),
-                    ),
+                    padding: AppSpacing.cardPaddingSmall(isLargePhone, isTablet),
                     child: Row(
                       children: [
                         Icon(
                           Icons.location_on,
                           size: isLargePhone ? 21 : (isTablet ? 22 : 20),
-                          color: const Color(0xFF2C2C2C),
+                          color: AppStyles.textPrimary,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -231,7 +230,7 @@ class _CourseCardState extends State<CourseCard> {
                   // Placeholder para el mapa (se puede reemplazar con TowerMapViewer si es necesario)
                   Container(
                     height: isLargePhone ? 220 : (isTablet ? 250 : 200),
-                    color: const Color(0xFFF5F5F5),
+                    color: AppStyles.lightGrayBackground,
                     child: Center(
                       child: Icon(
                         Icons.map,
@@ -241,9 +240,7 @@ class _CourseCardState extends State<CourseCard> {
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.all(
-                      isLargePhone ? 14 : (isTablet ? 16 : 12),
-                    ),
+                    padding: AppSpacing.cardPaddingSmall(isLargePhone, isTablet),
                     child: PrimaryButton(
                       label: 'Navegar Ahora (Tiempo Real)',
                       icon: Icons.send,
@@ -308,19 +305,19 @@ class _CourseCardState extends State<CourseCard> {
       case AttendanceStatus.completed:
         return AttendanceBadgeInfo(
           label: status == AttendanceStatus.completed ? 'Completado' : 'Presente',
-          color: const Color(0xFF3D79FF),
+          color: AppStyles.successColor,
           icon: Icons.check_circle,
         );
       case AttendanceStatus.late:
         return AttendanceBadgeInfo(
           label: 'Tardanza',
-          color: const Color(0xFF4864A2),
+          color: AppStyles.lateColor,
           icon: Icons.schedule,
         );
       case AttendanceStatus.absent:
         return AttendanceBadgeInfo(
           label: 'Ausente',
-          color: const Color(0xFF622222),
+          color: AppStyles.errorColor,
           icon: Icons.cancel,
         );
     }

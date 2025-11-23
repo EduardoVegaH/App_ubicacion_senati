@@ -7,4 +7,5 @@ export 'use_cases/search_students_use_case.dart';
 export 'use_cases/check_if_friend_use_case.dart';
 export 'use_cases/add_friend_use_case.dart';
 export 'use_cases/get_friends_use_case.dart';
+export 'use_cases/remove_friend_use_case.dart';
 

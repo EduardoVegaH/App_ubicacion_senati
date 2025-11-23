@@ -50,6 +50,19 @@ class AppStyles {
   /// Color azul (próximo)
   static const Color blueStatus = Colors.blue;
   
+  // ============================================
+  // 🎨 COLORES GRISES (Neutrales)
+  // ============================================
+  
+  /// Gris claro (300) - Usado en: Bordes, separadores
+  static const Color greyLight = Color(0xFFE0E0E0);
+  
+  /// Gris medio (400) - Usado en: Iconos secundarios, estados vacíos
+  static const Color greyMedium = Color(0xFFBDBDBD);
+  
+  /// Gris oscuro (600) - Usado en: Textos secundarios, placeholders
+  static const Color greyDark = Color(0xFF757575);
+  
   /// Color gris (finalizado/deshabilitado)
   static const Color greyStatus = Colors.grey;
   

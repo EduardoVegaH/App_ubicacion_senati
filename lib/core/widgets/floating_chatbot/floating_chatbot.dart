@@ -2,9 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../app/styles/app_styles.dart';
 import '../../../app/styles/app_shadows.dart';
-import '../../../features/chatbot/data/index.dart';
+import '../../../core/di/injection_container.dart';
 import '../../../features/chatbot/domain/index.dart';
 import '../../../features/chatbot/presentation/widgets/index.dart';
+import '../../../features/chatbot/domain/entities/chat_message_entity.dart';
 
 /// Widget de chatbot flotante con botón y chat desplegable
 class FloatingChatbot extends StatefulWidget {
@@ -17,22 +18,20 @@ class FloatingChatbot extends StatefulWidget {
 }
 
 class _FloatingChatbotState extends State<FloatingChatbot> {
-  late final ChatbotRemoteDataSource _dataSource;
-  late final ChatbotRepositoryImpl _repository;
+  late final ChatbotRepository _repository;
   late final SendMessageUseCase _sendMessageUseCase;
   
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<ChatMessage> _messages = [];
+  final List<ChatMessageEntity> _messages = [];
   bool _isChatOpen = false;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _dataSource = ChatbotRemoteDataSource();
-    _repository = ChatbotRepositoryImpl(_dataSource);
-    _sendMessageUseCase = SendMessageUseCase(_repository);
+    _repository = sl<ChatbotRepository>();
+    _sendMessageUseCase = sl<SendMessageUseCase>();
     
     if (widget.studentData != null) {
       _repository.updateStudentData(widget.studentData);
@@ -42,7 +41,7 @@ class _FloatingChatbotState extends State<FloatingChatbot> {
     final greeting = studentName.isNotEmpty 
         ? '¡Hola ${studentName.split(' ').first}! Soy tu asistente virtual de SENATI. ¿En qué puedo ayudarte?'
         : '¡Hola! Soy tu asistente virtual de SENATI. ¿En qué puedo ayudarte?';
-    _messages.add(ChatMessage(
+    _messages.add(ChatMessageEntity(
       text: greeting,
       isUser: false,
       timestamp: DateTime.now(),
@@ -78,7 +77,7 @@ class _FloatingChatbotState extends State<FloatingChatbot> {
     if (message.isEmpty || _isLoading) return;
 
     setState(() {
-      _messages.add(ChatMessage(text: message, isUser: true, timestamp: DateTime.now()));
+      _messages.add(ChatMessageEntity(text: message, isUser: true, timestamp: DateTime.now()));
       _isLoading = true;
     });
 
@@ -89,12 +88,12 @@ class _FloatingChatbotState extends State<FloatingChatbot> {
       final response = await _sendMessageUseCase.call(message);
       
       setState(() {
-        _messages.add(ChatMessage(text: response, isUser: false, timestamp: DateTime.now()));
+        _messages.add(ChatMessageEntity(text: response, isUser: false, timestamp: DateTime.now()));
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
-        _messages.add(ChatMessage(text: '❌ Error al obtener respuesta: $e', isUser: false, timestamp: DateTime.now()));
+        _messages.add(ChatMessageEntity(text: '❌ Error al obtener respuesta: $e', isUser: false, timestamp: DateTime.now()));
         _isLoading = false;
       });
     }
@@ -118,7 +117,7 @@ class _FloatingChatbotState extends State<FloatingChatbot> {
     setState(() {
       _messages.clear();
       _repository.resetChat();
-      _messages.add(ChatMessage(
+      _messages.add(ChatMessageEntity(
         text: '¡Hola! Soy tu asistente virtual de SENATI. ¿En qué puedo ayudarte?',
         isUser: false,
         timestamp: DateTime.now(),

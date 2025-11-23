@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../../../app/styles/app_styles.dart';
 import '../../../../../app/styles/app_shadows.dart';
 import '../../../../../app/styles/app_spacing.dart';
-import '../../data/index.dart';
+import '../../../../../core/di/injection_container.dart';
 import '../../domain/index.dart';
-import '../../data/models/chat_message.dart';
 import '../widgets/index.dart';
 
 /// Página de chatbot (refactorizada)
@@ -16,25 +15,21 @@ class ChatbotPage extends StatefulWidget {
 }
 
 class _ChatbotPageState extends State<ChatbotPage> {
-  late final ChatbotRemoteDataSource _dataSource;
-  late final ChatbotRepositoryImpl _repository;
   late final SendMessageUseCase _sendMessageUseCase;
   late final ResetChatUseCase _resetChatUseCase;
   
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<ChatMessage> _messages = [];
+  final List<ChatMessageEntity> _messages = [];
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _dataSource = ChatbotRemoteDataSource();
-    _repository = ChatbotRepositoryImpl(_dataSource);
-    _sendMessageUseCase = SendMessageUseCase(_repository);
-    _resetChatUseCase = ResetChatUseCase(_repository);
+    _sendMessageUseCase = sl<SendMessageUseCase>();
+    _resetChatUseCase = sl<ResetChatUseCase>();
     
-    _messages.add(ChatMessage(
+    _messages.add(ChatMessageEntity(
       text: '¡Hola! Soy tu asistente virtual de SENATI. ¿En qué puedo ayudarte hoy?',
       isUser: false,
       timestamp: DateTime.now(),
@@ -53,7 +48,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
     if (message.isEmpty || _isLoading) return;
 
     setState(() {
-      _messages.add(ChatMessage(text: message, isUser: true, timestamp: DateTime.now()));
+      _messages.add(ChatMessageEntity(text: message, isUser: true, timestamp: DateTime.now()));
       _isLoading = true;
     });
 
@@ -64,12 +59,12 @@ class _ChatbotPageState extends State<ChatbotPage> {
       final response = await _sendMessageUseCase.call(message);
       
       setState(() {
-        _messages.add(ChatMessage(text: response, isUser: false, timestamp: DateTime.now()));
+        _messages.add(ChatMessageEntity(text: response, isUser: false, timestamp: DateTime.now()));
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
-        _messages.add(ChatMessage(text: '❌ Error al obtener respuesta: $e', isUser: false, timestamp: DateTime.now()));
+        _messages.add(ChatMessageEntity(text: '❌ Error al obtener respuesta: $e', isUser: false, timestamp: DateTime.now()));
         _isLoading = false;
       });
     }
@@ -93,7 +88,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
     _resetChatUseCase.call();
     setState(() {
       _messages.clear();
-      _messages.add(ChatMessage(
+      _messages.add(ChatMessageEntity(
         text: '¡Hola! Soy tu asistente virtual de SENATI. ¿En qué puedo ayudarte hoy?',
         isUser: false,
         timestamp: DateTime.now(),

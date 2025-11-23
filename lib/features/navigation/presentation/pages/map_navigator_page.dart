@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../../../app/styles/app_styles.dart';
 import '../../../../../app/styles/app_shadows.dart';
+import '../../../../../app/styles/text_styles.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../../../../core/di/injection_container.dart';
 import '../../data/index.dart';
-import '../../data/use_cases/calculate_route_with_models_use_case.dart';
 import '../../domain/index.dart';
 import '../widgets/map_overlay_painter.dart';
 import '../widgets/salon_photo_popup.dart';
@@ -34,10 +35,11 @@ class MapNavigatorPage extends StatefulWidget {
 }
 
 class _MapNavigatorPageState extends State<MapNavigatorPage> with TickerProviderStateMixin {
-  late final NavigationRemoteDataSource _dataSource;
-  late final NavigationRepositoryImpl _repository;
   late final CalculateRouteWithModelsUseCase _calculateRouteWithModelsUseCase;
   late final FindNodeBySalonUseCase _findNodeBySalonUseCase;
+  late final LoadGraphUseCase _loadGraphUseCase;
+  late final FindNearestElevatorNodeUseCase _findNearestElevatorNodeUseCase;
+  late final FindEntranceNodeUseCase _findEntranceNodeUseCase;
   
   final TransformationController _transformationController = TransformationController();
   
@@ -57,10 +59,8 @@ class _MapNavigatorPageState extends State<MapNavigatorPage> with TickerProvider
   @override
   void initState() {
     super.initState();
-    _dataSource = NavigationRemoteDataSource();
-    _repository = NavigationRepositoryImpl(_dataSource);
-    _calculateRouteWithModelsUseCase = CalculateRouteWithModelsUseCase(_repository);
-    _findNodeBySalonUseCase = FindNodeBySalonUseCase(_repository);
+    _calculateRouteWithModelsUseCase = sl<CalculateRouteWithModelsUseCase>();
+    _findNodeBySalonUseCase = sl<FindNodeBySalonUseCase>();
     
     _transformationController.addListener(_onTransformChanged);
     
@@ -160,8 +160,17 @@ class _MapNavigatorPageState extends State<MapNavigatorPage> with TickerProvider
       }
       _pisoCargado = pisoACargar;
       
-      final graph = await _dataSource.loadGraph(pisoACargar);
-      _allNodes = graph['nodes'] as List<MapNodeModel>;
+      final graph = await _loadGraphUseCase.call(pisoACargar);
+      // Convertir entidades a modelos
+      final nodes = graph['nodes'] as List<MapNodeEntity>;
+      _allNodes = nodes.map((e) => MapNodeModel(
+        id: e.id,
+        x: e.x,
+        y: e.y,
+        piso: e.piso,
+        tipo: e.tipo,
+        salonId: e.salonId,
+      )).toList();
       
       if (_allNodes.isEmpty) {
         throw Exception(
@@ -171,7 +180,7 @@ class _MapNavigatorPageState extends State<MapNavigatorPage> with TickerProvider
       }
 
       print('🔍 Buscando nodo más cercano a los ascensores...');
-      final entranceEntity = await _repository.findNearestElevatorNode(pisoACargar);
+      final entranceEntity = await _findNearestElevatorNodeUseCase.call(pisoACargar);
       if (entranceEntity != null) {
         _entranceNode = MapNodeModel(
           id: entranceEntity.id,
@@ -183,7 +192,7 @@ class _MapNavigatorPageState extends State<MapNavigatorPage> with TickerProvider
         );
       } else {
         print('⚠️ No se encontró nodo cercano a ascensores, usando entrada principal');
-        final entranceEntity2 = await _repository.findEntranceNode(pisoACargar);
+        final entranceEntity2 = await _findEntranceNodeUseCase.call(pisoACargar);
         if (entranceEntity2 != null) {
           _entranceNode = MapNodeModel(
             id: entranceEntity2.id,
@@ -449,12 +458,9 @@ class _MapNavigatorPageState extends State<MapNavigatorPage> with TickerProvider
       appBar: AppBar(
         title: Text(
           widget.salonNombre ?? 'Navegación al Salón',
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: AppTextStyles.titleMedium(false, false),
         ),
-        backgroundColor: const Color(0xFF1B38E3),
+        backgroundColor: AppStyles.primaryColor,
         foregroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -482,21 +488,14 @@ class _MapNavigatorPageState extends State<MapNavigatorPage> with TickerProvider
                           children: [
                             Icon(Icons.error_outline, color: AppStyles.errorColor, size: 64),
                             const SizedBox(height: 24),
-                            const Text(
+                            Text(
                               'Error al cargar el mapa',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppStyles.errorColor,
-                              ),
+                              style: AppTextStyles.titleLarge(false, false, AppStyles.errorColor),
                             ),
                             const SizedBox(height: 16),
                             Text(
                               _errorMessage!,
-                              style: const TextStyle(
-                                color: Colors.black87,
-                                fontSize: 14,
-                              ),
+                              style: AppTextStyles.bodyMedium(false, false, AppStyles.textPrimary),
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 32),

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../home/data/models/student_model.dart';
 import '../../../../../app/styles/app_styles.dart';
 import '../../../../../app/styles/app_spacing.dart';
-import '../../../../core/widgets/app_bar_with_title/app_bar_with_title.dart';
-import '../../../../core/widgets/empty_state/empty_state.dart';
+import '../../../../core/widgets/app_bar/index.dart';
+import '../../../../core/widgets/empty_states/index.dart';
 import '../widgets/simple_course_card.dart';
 import 'course_history_page.dart';
 

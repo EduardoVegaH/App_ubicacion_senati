@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../../app/styles/app_styles.dart';
+import '../../../../../app/styles/text_styles.dart';
 import '../../../../core/widgets/status_badge/status_badge.dart';
 import '../../data/models/bathroom_model.dart';
 import '../../domain/entities/bathroom_entity.dart';
@@ -46,7 +47,7 @@ class FloorCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppStyles.surfaceColor,
-        border: Border.all(color: Colors.grey[300]!, width: 1),
+        border: Border.all(color: AppStyles.greyLight, width: 1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Theme(
@@ -78,21 +79,14 @@ class FloorCard extends StatelessWidget {
           ),
           title: Text(
             'Piso $piso',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: isLargePhone ? 18 : (isTablet ? 20 : 16),
-              color: const Color(0xFF2C2C2C),
-            ),
+            style: AppTextStyles.titleMedium(isLargePhone, isTablet),
           ),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4),
             child: showBathroomCount
                 ? Text(
                     '${bathrooms.length} baño${bathrooms.length != 1 ? 's' : ''}',
-                    style: TextStyle(
-                      color: const Color(0xFF757575),
-                      fontSize: isLargePhone ? 14 : (isTablet ? 15 : 13),
-                    ),
+                    style: AppTextStyles.bodySmall(isLargePhone, isTablet, AppStyles.textSecondary),
                   )
                 : Row(
                     children: [

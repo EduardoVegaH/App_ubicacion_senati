@@ -49,6 +49,9 @@ dependencies:
   # Para renderizar SVG
   flutter_svg: ^2.0.7
 
+  # Inyección de dependencias
+  get_it: ^7.6.4
+
   # Para chatbot de IA (Google Gemini)
   google_generative_ai: ^0.4.7
 

@@ -1,13 +1,11 @@
-/// Modelo de mensaje de chat
-class ChatMessage {
-  final String text;
-  final bool isUser;
-  final DateTime timestamp;
+import '../../domain/entities/chat_message_entity.dart';
 
+/// Modelo de mensaje de chat
+class ChatMessage extends ChatMessageEntity {
   ChatMessage({
-    required this.text,
-    required this.isUser,
-    required this.timestamp,
+    required super.text,
+    required super.isUser,
+    required super.timestamp,
   });
 }
 

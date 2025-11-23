@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../../../app/styles/app_styles.dart';
 import '../../../../../app/styles/app_spacing.dart';
-import '../../../../core/widgets/app_bar_with_title/app_bar_with_title.dart';
-import '../../../../core/widgets/empty_state/empty_state.dart';
-import '../../data/index.dart';
+import '../../../../core/widgets/app_bar/index.dart';
+import '../../../../core/widgets/empty_states/index.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../domain/index.dart';
+import '../../data/models/bathroom_model.dart';
 import '../widgets/floor_card.dart';
 
 /// Página de estado de baños (refactorizada)
@@ -21,9 +22,7 @@ class _BathroomStatusPageState extends State<BathroomStatusPage> {
   @override
   void initState() {
     super.initState();
-    final dataSource = BathroomRemoteDataSource();
-    final repository = BathroomRepositoryImpl(dataSource);
-    _getBathroomsGroupedByFloorUseCase = GetBathroomsGroupedByFloorUseCase(repository);
+    _getBathroomsGroupedByFloorUseCase = sl<GetBathroomsGroupedByFloorUseCase>();
   }
 
   @override
@@ -67,18 +66,7 @@ class _BathroomStatusPageState extends State<BathroomStatusPage> {
           final bathroomsByFloorAsModels = bathroomsByFloor.map(
             (key, value) => MapEntry(
               key,
-              value.map((entity) => BathroomModel(
-                id: entity.id,
-                nombre: entity.nombre,
-                piso: entity.piso,
-                estado: entity.estado,
-                tipo: entity.tipo,
-                usuarioLimpiezaId: entity.usuarioLimpiezaId,
-                usuarioLimpiezaNombre: entity.usuarioLimpiezaNombre,
-                inicioLimpieza: entity.inicioLimpieza,
-                finLimpieza: entity.finLimpieza,
-                ultimaActualizacion: entity.ultimaActualizacion,
-              )).toList(),
+              value.map((entity) => BathroomModel.fromEntity(entity)).toList(),
             ),
           );
 

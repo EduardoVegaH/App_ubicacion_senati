@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../../../../../app/styles/app_styles.dart';
 import '../../../../../app/styles/text_styles.dart';
+import '../../../../../app/styles/app_spacing.dart';
 import '../../../../core/widgets/floating_chatbot/floating_chatbot.dart';
-import '../../../../core/widgets/empty_state/empty_state.dart';
+import '../../../../core/widgets/empty_states/index.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../features/auth/presentation/pages/login_page.dart';
-import '../../data/index.dart';
 import '../../domain/index.dart';
 import '../widgets/student_info_header.dart';
 import '../../../courses/presentation/widgets/course_card.dart';
 import '../widgets/home_drawer.dart';
+import '../models/drawer_menu_item.dart';
+import '../../../bathrooms/presentation/pages/bathroom_status_page.dart';
+import '../../../friends/presentation/pages/friends_page.dart';
+import '../../../chatbot/presentation/pages/chatbot_page.dart';
+import '../../../courses/presentation/pages/courses_list_page.dart';
+import '../../data/models/student_model.dart';
 import '../widgets/academic_status_block.dart';
 import '../widgets/section_header.dart';
 import '../widgets/info_banner.dart';
@@ -24,24 +30,20 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Repositorios y data sources
-  late final HomeRepository _repository;
-  late final LocationDataSource _locationDataSource;
-  late final NotificationDataSource _notificationDataSource;
-
   // Use cases
   late final LoadStudentWithCoursesUseCase _loadStudentWithCoursesUseCase;
-  late final UpdateLocationUseCase _updateLocationUseCase;
-  late final CheckCampusStatusUseCase _checkCampusStatusUseCase;
   late final GetCourseStatusUseCase _getCourseStatusUseCase;
-  late final ValidateAttendanceUseCase _validateAttendanceUseCase;
   late final LogoutUseCase _logoutUseCase;
+  late final InitializeNotificationsUseCase _initializeNotificationsUseCase;
+  late final ScheduleNotificationsUseCase _scheduleNotificationsUseCase;
+  late final CheckCoursesAttendanceUseCase _checkCoursesAttendanceUseCase;
+  late final UpdateLocationPeriodicallyUseCase _updateLocationPeriodicallyUseCase;
 
   // Estado
   StudentEntity? _student;
   bool _loading = true;
   String _campusStatus = "Desconocido";
-  final Map<String, AttendanceStatus> _courseAttendanceStatus = {};
+  Map<String, AttendanceStatus> _courseAttendanceStatus = {};
   final Map<String, DateTime?> _courseFirstEntryTime = {};
 
   // Timers
@@ -54,34 +56,19 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _initializeDependencies();
     _loadStudentData();
-    _initializeNotifications();
+    _initializeNotificationsUseCase.call();
     _startTimers();
   }
 
   void _initializeDependencies() {
-    // Inicializar data sources
-    _locationDataSource = LocationDataSource();
-    _notificationDataSource = NotificationDataSource();
-    final homeRemoteDataSource = HomeRemoteDataSource();
-
-    // Inicializar repositorio
-    _repository = HomeRepositoryImpl(
-      homeRemoteDataSource,
-      _locationDataSource,
-    );
-
-    // Inicializar use cases
-    final getStudentDataUseCase = GetStudentDataUseCase(_repository);
-    final generateCourseHistoryUseCase = GenerateCourseHistoryUseCase();
-    _loadStudentWithCoursesUseCase = LoadStudentWithCoursesUseCase(
-      getStudentDataUseCase: getStudentDataUseCase,
-      generateCourseHistoryUseCase: generateCourseHistoryUseCase,
-    );
-    _updateLocationUseCase = UpdateLocationUseCase(_repository);
-    _checkCampusStatusUseCase = CheckCampusStatusUseCase();
-    _getCourseStatusUseCase = GetCourseStatusUseCase();
-    _validateAttendanceUseCase = ValidateAttendanceUseCase(_getCourseStatusUseCase);
-    _logoutUseCase = LogoutUseCase(_repository);
+    // Obtener use cases del service locator
+    _loadStudentWithCoursesUseCase = sl<LoadStudentWithCoursesUseCase>();
+    _getCourseStatusUseCase = sl<GetCourseStatusUseCase>();
+    _logoutUseCase = sl<LogoutUseCase>();
+    _initializeNotificationsUseCase = sl<InitializeNotificationsUseCase>();
+    _scheduleNotificationsUseCase = sl<ScheduleNotificationsUseCase>();
+    _checkCoursesAttendanceUseCase = sl<CheckCoursesAttendanceUseCase>();
+    _updateLocationPeriodicallyUseCase = sl<UpdateLocationPeriodicallyUseCase>();
   }
 
   Future<void> _loadStudentData() async {
@@ -98,7 +85,7 @@ class _HomePageState extends State<HomePage> {
         });
 
         // Programar notificaciones
-        await _scheduleNotifications(student.coursesToday);
+        await _scheduleNotificationsUseCase.call(student.coursesToday);
       } else {
         if (mounted) {
           setState(() {
@@ -116,33 +103,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _scheduleNotifications(List<CourseEntity> courses) async {
-    try {
-      await Future.delayed(const Duration(seconds: 2));
-      final hasPermissions = await _notificationDataSource.checkPermissions();
-      if (!hasPermissions) {
-        print('⚠️ ADVERTENCIA: Las notificaciones no están habilitadas');
-      }
-
-      // Programar notificación de prueba
-      await _notificationDataSource.scheduleTestNotification(10);
-
-      if (courses.isNotEmpty) {
-        await _notificationDataSource.scheduleAllCourseNotifications(courses);
-      }
-    } catch (e) {
-      print('Error programando notificaciones: $e');
-    }
-  }
-
-  Future<void> _initializeNotifications() async {
-    await _notificationDataSource.initialize();
-  }
 
   void _startTimers() {
     // Timer para actualizar ubicación cada 5 segundos
-    _gpsTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      _updateLocation();
+    // Iniciar después de un pequeño delay para asegurar que todas las dependencias estén inicializadas
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _gpsTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+          if (mounted) _updateLocation();
+        });
+      }
     });
 
     // Timer para actualizar estado de cursos cada minuto
@@ -152,33 +122,17 @@ class _HomePageState extends State<HomePage> {
 
     // Timer para validar asistencia cada 30 segundos
     _attendanceCheckTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      _checkCourseAttendance();
+      if (mounted) _checkCourseAttendance();
     });
   }
 
   Future<void> _updateLocation() async {
-    try {
-      final location = await _locationDataSource.getCurrentLocation();
-      final isInside = _checkCampusStatusUseCase.call(location);
-      
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      final status = isInside ? "Dentro del campus" : "Fuera del campus";
-      
-      if (mounted) {
-        setState(() {
-          _campusStatus = status;
-        });
-      }
-
-      await _updateLocationUseCase.call(
-        userId: user.uid,
-        location: location,
-        campusStatus: status,
-      );
-    } catch (e) {
-      print("Error actualizando ubicación: $e");
+    final status = await _updateLocationPeriodicallyUseCase.call();
+    
+    if (status != null && mounted) {
+      setState(() {
+        _campusStatus = status;
+      });
     }
   }
 
@@ -186,28 +140,16 @@ class _HomePageState extends State<HomePage> {
     if (_student == null) return;
 
     try {
-      final location = await _locationDataSource.getCurrentLocation();
+      final updatedStatus = await _checkCoursesAttendanceUseCase.call(
+        student: _student!,
+        courseFirstEntryTime: _courseFirstEntryTime,
+        currentAttendanceStatus: _courseAttendanceStatus,
+      );
 
-      for (var course in _student!.coursesToday) {
-        final statusInfo = _getCourseStatusUseCase.call(course);
-        final isActive = statusInfo.status == CourseStatus.inProgress ||
-            statusInfo.status == CourseStatus.late ||
-            (statusInfo.status == CourseStatus.finished &&
-                _courseFirstEntryTime[course.name] != null);
-
-        if (isActive || statusInfo.status == CourseStatus.soon) {
-          final attendanceStatus = _validateAttendanceUseCase.call(
-            course: course,
-            currentLocation: location,
-            courseFirstEntryTime: _courseFirstEntryTime,
-            courseAttendanceStatus: _courseAttendanceStatus,
-          );
-          _courseAttendanceStatus[course.name] = attendanceStatus;
-
-          if (mounted) {
-            setState(() {});
-          }
-        }
+      if (mounted) {
+        setState(() {
+          _courseAttendanceStatus = updatedStatus;
+        });
       }
     } catch (e) {
       print('Error verificando asistencia: $e');
@@ -329,11 +271,13 @@ class _HomePageState extends State<HomePage> {
 
     final sortedCourses = _sortCoursesByTime(_student!.coursesToday);
 
+    // Construir items del menú
+    final menuItems = _buildMenuItems(context, isLargePhone, isTablet);
+
     return Scaffold(
       backgroundColor: AppStyles.surfaceColor,
       drawer: HomeDrawer(
-        student: _student,
-        onLogout: _handleLogout,
+        menuItems: menuItems,
         isLargePhone: isLargePhone,
         isTablet: isTablet,
       ),
@@ -370,7 +314,7 @@ class _HomePageState extends State<HomePage> {
                           // Sección de Información Académica
                           Padding(
                             padding: EdgeInsets.only(
-                              bottom: isLargePhone ? 24 : (isTablet ? 28 : 20),
+                              bottom: isLargePhone ? AppSpacing.spacingXL : (isTablet ? 28 : 20),
                             ),
                             child: AcademicStatusBlock(student: _student!),
                           ),
@@ -426,9 +370,7 @@ class _HomePageState extends State<HomePage> {
                                   
                                   return Padding(
                                     padding: EdgeInsets.only(
-                                      bottom: isLargePhone
-                                          ? 18
-                                          : (isTablet ? 20 : 16),
+                                      bottom: isLargePhone ? 18 : (isTablet ? 20 : AppSpacing.spacingL),
                                     ),
                                     child: CourseCard(
                                       course: course,
@@ -441,7 +383,7 @@ class _HomePageState extends State<HomePage> {
                               // Información adicional
                               Padding(
                                 padding: EdgeInsets.only(
-                                  top: isLargePhone ? 18 : (isTablet ? 20 : 16),
+                                  top: isLargePhone ? 18 : (isTablet ? 20 : AppSpacing.spacingL),
                                 ),
                                 child: InfoBanner(
                                   icon: Icons.location_on,
@@ -476,5 +418,101 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+  }
+
+  /// Construye la lista de items del menú del drawer
+  List<DrawerMenuItem> _buildMenuItems(
+    BuildContext context,
+    bool isLargePhone,
+    bool isTablet,
+  ) {
+    return [
+      // Botón Baños
+      DrawerMenuItem(
+        icon: Icons.wc,
+        title: 'Baños',
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const BathroomStatusPage(),
+            ),
+          );
+        },
+      ),
+      // Botón Cursos
+      DrawerMenuItem(
+        icon: Icons.folder,
+        title: 'Cursos',
+        onTap: () {
+          Navigator.pop(context);
+          if (_student != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CoursesListPage(
+                  courses: _student!.coursesToday.map((c) {
+                    return CourseModel(
+                      name: c.name,
+                      type: c.type,
+                      startTime: c.startTime,
+                      endTime: c.endTime,
+                      duration: c.duration,
+                      teacher: c.teacher,
+                      locationCode: c.locationCode,
+                      locationDetail: c.locationDetail,
+                      classroomLatitude: c.classroomLatitude,
+                      classroomLongitude: c.classroomLongitude,
+                      classroomRadius: c.classroomRadius,
+                      history: c.history,
+                    );
+                  }).toList(),
+                ),
+              ),
+            );
+          }
+        },
+      ),
+      // Botón Amigos
+      DrawerMenuItem(
+        icon: Icons.people,
+        title: 'Amigos',
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const FriendsPage(),
+            ),
+          );
+        },
+      ),
+      // Botón Asistente Virtual (Chatbot)
+      DrawerMenuItem(
+        icon: Icons.smart_toy,
+        title: 'Asistente Virtual',
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ChatbotPage(),
+            ),
+          );
+        },
+      ),
+      // Botón Cerrar Sesión
+      DrawerMenuItem(
+        icon: Icons.logout,
+        title: 'Cerrar Sesión',
+        onTap: () {
+          Navigator.pop(context);
+          _handleLogout();
+        },
+        showSeparator: false,
+        isLogout: true,
+      ),
+    ];
   }
 }

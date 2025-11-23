@@ -140,5 +140,21 @@ class BathroomModel extends BathroomEntity {
       ultimaActualizacion: ultimaActualizacion,
     );
   }
+
+  /// Crear desde entidad
+  factory BathroomModel.fromEntity(BathroomEntity entity) {
+    return BathroomModel(
+      id: entity.id,
+      nombre: entity.nombre,
+      piso: entity.piso,
+      estado: entity.estado,
+      tipo: entity.tipo,
+      usuarioLimpiezaId: entity.usuarioLimpiezaId,
+      usuarioLimpiezaNombre: entity.usuarioLimpiezaNombre,
+      inicioLimpieza: entity.inicioLimpieza,
+      finLimpieza: entity.finLimpieza,
+      ultimaActualizacion: entity.ultimaActualizacion,
+    );
+  }
 }
 

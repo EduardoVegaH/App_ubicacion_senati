@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../../app/styles/app_styles.dart';
+import '../../../../../app/styles/text_styles.dart';
 import '../../../../core/widgets/search_bar/search_bar.dart' as custom;
-import '../../../../core/widgets/empty_state/empty_state.dart';
-import '../../data/index.dart';
+import '../../../../core/widgets/empty_states/index.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../domain/index.dart';
+import '../../data/models/friend_model.dart';
 import '../widgets/friend_card.dart';
 import '../widgets/search_result_card.dart';
 
@@ -17,11 +19,10 @@ class FriendsPage extends StatefulWidget {
 }
 
 class _FriendsPageState extends State<FriendsPage> {
-  late final FriendsRemoteDataSource _dataSource;
-  late final FriendsRepositoryImpl _repository;
   late final GetFriendsUseCase _getFriendsUseCase;
   late final SearchStudentsUseCase _searchStudentsUseCase;
   late final AddFriendUseCase _addFriendUseCase;
+  late final RemoveFriendUseCase _removeFriendUseCase;
   
   final TextEditingController _searchController = TextEditingController();
   List<FriendModel> _friends = [];
@@ -35,11 +36,9 @@ class _FriendsPageState extends State<FriendsPage> {
   @override
   void initState() {
     super.initState();
-    _dataSource = FriendsRemoteDataSource();
-    _repository = FriendsRepositoryImpl(_dataSource);
-    _getFriendsUseCase = GetFriendsUseCase(_repository);
-    _searchStudentsUseCase = SearchStudentsUseCase(_repository);
-    _addFriendUseCase = AddFriendUseCase(_repository);
+    _getFriendsUseCase = sl<GetFriendsUseCase>();
+    _searchStudentsUseCase = sl<SearchStudentsUseCase>();
+    _addFriendUseCase = sl<AddFriendUseCase>();
     _loadFriends();
   }
 
@@ -115,7 +114,7 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   Future<void> _removeFriend(String friendUid) async {
-    final success = await _repository.removeFriend(friendUid);
+    final success = await _removeFriendUseCase.call(friendUid);
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -239,7 +238,12 @@ class _FriendsPageState extends State<FriendsPage> {
     return Scaffold(
       backgroundColor: AppStyles.surfaceColor,
       appBar: AppBar(
-        title: const Text('Amigos', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(
+          'Amigos',
+          style: AppTextStyles.titleMedium(false, false, AppStyles.textOnDark).copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: AppStyles.primaryColor,
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
@@ -293,20 +297,30 @@ class _FriendsPageState extends State<FriendsPage> {
                         message: 'No hay estudiantes registrados',
                         secondaryMessage: 'Busca estudiantes por su ID o nombre para agregarlos',
                       )
-                    : _buildFriendsList(isLargePhone, isTablet, padding),
+                    : _buildFriendsList(isLargePhone, isTablet),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFriendsList(bool isLargePhone, bool isTablet, double padding) {
+  Widget _buildFriendsList(bool isLargePhone, bool isTablet) {
     return ListView(
-      padding: EdgeInsets.symmetric(horizontal: padding),
+      padding: EdgeInsets.symmetric(
+        horizontal: isLargePhone ? 20.0 : (isTablet ? 24.0 : 16.0),
+      ),
       children: [
         Padding(
-          padding: EdgeInsets.only(top: padding, bottom: isLargePhone ? 16 : (isTablet ? 18 : 14)),
-          child: Text('Mis amigos', style: TextStyle(fontSize: isLargePhone ? 14 : (isTablet ? 15 : 13), fontWeight: FontWeight.w600, color: Colors.grey[700])),
+          padding: EdgeInsets.only(
+            top: isLargePhone ? 20.0 : (isTablet ? 24.0 : 16.0),
+            bottom: isLargePhone ? 16 : (isTablet ? 18 : 14),
+          ),
+          child: Text(
+            'Mis amigos',
+            style: AppTextStyles.bodySmall(isLargePhone, isTablet, AppStyles.greyDark).copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
         // Si hay búsqueda activa, no mostrar la lista de amigos aquí
         if (_searchResults.isEmpty)
