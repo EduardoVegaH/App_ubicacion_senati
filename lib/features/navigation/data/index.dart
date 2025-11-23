@@ -4,3 +4,4 @@ export 'data_sources/index.dart';
 export 'repositories/index.dart';
 export 'config/index.dart';
 export 'services/index.dart';
+export 'utils/index.dart';

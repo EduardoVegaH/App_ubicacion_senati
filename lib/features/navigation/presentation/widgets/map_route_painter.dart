@@ -4,66 +4,124 @@ import '../../domain/entities/map_node.dart';
 /// CustomPainter que dibuja la ruta sobre el mapa
 /// 
 /// Dibuja líneas conectando los nodos en orden y marca el destino
+/// Transforma coordenadas del SVG al canvas considerando el aspect ratio
 class MapRoutePainter extends CustomPainter {
   final List<MapNode> pathNodes;
   final Color routeColor;
   final Color destinationColor;
   final double routeWidth;
+  
+  /// Dimensiones del SVG (viewBox)
+  final double svgWidth;
+  final double svgHeight;
+  
+  /// Nodo de inicio (entrada) para resaltar
+  final MapNode? entranceNode;
 
   MapRoutePainter({
     required this.pathNodes,
-    this.routeColor = const Color(0xFF0066FF),
-    this.destinationColor = const Color(0xFF00AA00),
-    this.routeWidth = 4.0,
+    this.entranceNode,
+    this.routeColor = const Color(0xFF1B38E3),
+    this.destinationColor = const Color(0xFF87CEEB), // Celeste claro
+    this.routeWidth = 2.5,
+    this.svgWidth = 2117.0, // viewBox width del SVG piso 2 (por defecto)
+    this.svgHeight = 1729.0, // viewBox height del SVG piso 2 (por defecto)
   });
+
+  /// Transforma coordenadas del SVG a coordenadas del canvas
+  /// Considera el aspect ratio y el centrado (BoxFit.contain)
+  Offset _transformPoint(double x, double y, Size canvasSize) {
+    // Calcular escala para mantener aspect ratio (BoxFit.contain)
+    final scaleX = canvasSize.width / svgWidth;
+    final scaleY = canvasSize.height / svgHeight;
+    final scale = scaleX < scaleY ? scaleX : scaleY;
+    
+    // Calcular offset para centrar
+    final scaledWidth = svgWidth * scale;
+    final scaledHeight = svgHeight * scale;
+    final offsetX = (canvasSize.width - scaledWidth) / 2;
+    final offsetY = (canvasSize.height - scaledHeight) / 2;
+    
+    // Transformar coordenadas
+    return Offset(
+      offsetX + x * scale,
+      offsetY + y * scale,
+    );
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (pathNodes.length < 2) return;
+    print('🎨 MapRoutePainter.paint: ${pathNodes.length} nodos, canvas size: ${size.width}x${size.height}');
+    
+    if (pathNodes.length < 2) {
+      print('⚠️ MapRoutePainter: No hay suficientes nodos para dibujar (${pathNodes.length} < 2)');
+      return;
+    }
+    
+    print('🎨 MapRoutePainter: Dibujando ruta con ${pathNodes.length} nodos');
 
-    final paint = Paint()
+    final routePaint = Paint()
       ..color = routeColor
       ..strokeWidth = routeWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    // Dibujar líneas conectando los nodos en orden
+    // Dibujar líneas conectando los nodos en orden (transformando coordenadas)
     for (int i = 0; i < pathNodes.length - 1; i++) {
       final from = pathNodes[i];
       final to = pathNodes[i + 1];
 
-      canvas.drawLine(
-        Offset(from.x, from.y),
-        Offset(to.x, to.y),
-        paint,
-      );
+      final fromPoint = _transformPoint(from.x, from.y, size);
+      final toPoint = _transformPoint(to.x, to.y, size);
+
+      canvas.drawLine(fromPoint, toPoint, routePaint);
     }
 
-    // Dibujar círculo especial para el último nodo (destino)
+    // Dibujar nodo inicial (entrada) en azul si está disponible
+    final startNode = entranceNode ?? pathNodes.first;
+    final startPoint = _transformPoint(startNode.x, startNode.y, size);
+    
+    final startPaint = Paint()
+      ..color = routeColor
+      ..style = PaintingStyle.fill;
+    
+    final startBorderPaint = Paint()
+      ..color = routeColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    
+    // Anillo exterior para mayor visibilidad
+    final ringPaint = Paint()
+      ..color = routeColor.withOpacity(0.3)
+      ..style = PaintingStyle.fill;
+    
+    canvas.drawCircle(startPoint, 12.0, ringPaint);
+    canvas.drawCircle(startPoint, 8.0, startPaint);
+    canvas.drawCircle(startPoint, 8.0, startBorderPaint);
+
+    // Dibujar nodo destino resaltado (celeste)
     if (pathNodes.isNotEmpty) {
       final destination = pathNodes.last;
-      final destinationPaint = Paint()
+      final destPoint = _transformPoint(destination.x, destination.y, size);
+      
+      final destPaint = Paint()
         ..color = destinationColor
         ..style = PaintingStyle.fill;
-
-      // Círculo más grande para el destino
-      canvas.drawCircle(
-        Offset(destination.x, destination.y),
-        12.0,
-        destinationPaint,
-      );
-
-      // Borde del círculo de destino
-      final destinationBorderPaint = Paint()
-        ..color = Colors.white
+      
+      final destBorderPaint = Paint()
+        ..color = destinationColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0;
-      canvas.drawCircle(
-        Offset(destination.x, destination.y),
-        12.0,
-        destinationBorderPaint,
-      );
+        ..strokeWidth = 3.0;
+      
+      // Anillo exterior para mayor visibilidad
+      final ringPaint = Paint()
+        ..color = destinationColor.withOpacity(0.3)
+        ..style = PaintingStyle.fill;
+      
+      canvas.drawCircle(destPoint, 15.0, ringPaint);
+      canvas.drawCircle(destPoint, 10.0, destPaint);
+      canvas.drawCircle(destPoint, 10.0, destBorderPaint);
     }
 
     // Dibujar pequeños círculos en cada nodo intermedio
@@ -71,22 +129,22 @@ class MapRoutePainter extends CustomPainter {
       ..color = routeColor
       ..style = PaintingStyle.fill;
 
-    for (int i = 0; i < pathNodes.length - 1; i++) {
+    for (int i = 1; i < pathNodes.length - 1; i++) {
       final node = pathNodes[i];
-      canvas.drawCircle(
-        Offset(node.x, node.y),
-        6.0,
-        nodePaint,
-      );
+      final nodePoint = _transformPoint(node.x, node.y, size);
+      canvas.drawCircle(nodePoint, 4.0, nodePaint);
     }
   }
 
   @override
   bool shouldRepaint(MapRoutePainter oldDelegate) {
     return oldDelegate.pathNodes != pathNodes ||
+        oldDelegate.entranceNode != entranceNode ||
         oldDelegate.routeColor != routeColor ||
         oldDelegate.destinationColor != destinationColor ||
-        oldDelegate.routeWidth != routeWidth;
+        oldDelegate.routeWidth != routeWidth ||
+        oldDelegate.svgWidth != svgWidth ||
+        oldDelegate.svgHeight != svgHeight;
   }
 }
 

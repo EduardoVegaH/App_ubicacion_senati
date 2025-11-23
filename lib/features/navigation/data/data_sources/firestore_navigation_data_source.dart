@@ -14,7 +14,9 @@ class FirestoreNavigationDataSource {
   /// Estructura en Firestore:
   /// - /mapas/piso_{floor}/nodes/{nodeId}
   /// - /mapas/piso_{floor}/edges/{fromId_toId}
-  Future<void> saveFloorGraph(MapFloor floor) async {
+  /// 
+  /// Si [replaceExisting] es true, elimina todos los nodos y edges existentes antes de guardar
+  Future<void> saveFloorGraph(MapFloor floor, {bool replaceExisting = false}) async {
     final batch = _db.batch();
 
     final nodesCollection = _db
@@ -26,6 +28,25 @@ class FirestoreNavigationDataSource {
         .collection('mapas')
         .doc('piso_${floor.floor}')
         .collection('edges');
+
+    // Si se solicita reemplazar, eliminar nodos y edges existentes
+    if (replaceExisting) {
+      print('🗑️  Eliminando nodos y edges existentes del piso ${floor.floor}...');
+      
+      // Obtener todos los nodos existentes y eliminarlos
+      final existingNodesSnapshot = await nodesCollection.get();
+      for (final doc in existingNodesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Obtener todos los edges existentes y eliminarlos
+      final existingEdgesSnapshot = await edgesCollection.get();
+      for (final doc in existingEdgesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      print('🗑️  Eliminados ${existingNodesSnapshot.docs.length} nodos y ${existingEdgesSnapshot.docs.length} edges');
+    }
 
     // Guardar nodos
     for (final node in floor.nodes) {
@@ -44,6 +65,7 @@ class FirestoreNavigationDataSource {
     }
 
     await batch.commit();
+    print('✅ Guardados ${floor.nodes.length} nodos y ${floor.edges.length} edges en Firestore');
   }
 
   /// Obtiene el grafo completo de un piso desde Firestore

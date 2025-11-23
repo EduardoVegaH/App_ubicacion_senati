@@ -93,6 +93,7 @@ class GraphEdgesConfig {
     ['node_puerta_patiocomedor', 'node_29'],
     ['node_36', 'node_puerta_patiocomedor'],
     ['node_40', 'node_35'],
+    ['node_35', 'node_34'],
   ];
 
   /// Edges manuales del Piso 2

@@ -4,6 +4,9 @@ import '../../../home/domain/entities/course_status_entity.dart';
 import '../../../home/domain/entities/attendance_entity.dart';
 import '../../../home/domain/use_cases/get_course_status_use_case.dart';
 import '../../../navigation/presentation/index.dart';
+import '../../../navigation/domain/repositories/navigation_repository.dart';
+import '../../../navigation/domain/use_cases/find_nearest_elevator_node.dart';
+import '../../../../core/di/injection_container.dart' as sl;
 import '../../../../core/widgets/primary_button/primary_button.dart';
 import '../../../../../app/styles/text_styles.dart';
 import '../../../../../app/styles/app_spacing.dart';
@@ -244,39 +247,64 @@ class _CourseCardState extends State<CourseCard> {
                     child: PrimaryButton(
                       label: 'Navegar Ahora (Tiempo Real)',
                       icon: Icons.send,
-                      onPressed: () {
-                        // Extraer información del salón desde locationCode
-                        // Formato esperado: "IND - TORRE B 60TB - 200"
-                        final salonId = _extractSalonId(widget.course.locationCode);
+                      onPressed: () async {
+                        // Extraer información del salón desde locationDetail (más confiable)
+                        // Formato esperado: "Torre B, Piso 2, Salón 200" o "Comedor, Piso 1"
                         final piso = _extractPiso(widget.course.locationDetail);
+                        final torre = _extractTorre(widget.course.locationDetail);
+                        final salonNumber = _extractSalonNumber(widget.course.locationDetail);
                         
-                        // Mapear salón a nodo de destino
-                        // Por ahora, usar un formato simple: node_puerta_main01 como origen
-                        // y buscar el nodo del salón como destino
-                        String toNodeId;
-                        if (piso == 1) {
-                          // Para piso 1, buscar nodo del salón
-                          // Si el salón contiene "sal" o "A200", etc., buscar nodo correspondiente
-                          toNodeId = _findNodeIdForSalon(salonId, piso);
-                        } else if (piso == 2) {
-                          // Para piso 2, buscar nodo del salón
-                          toNodeId = _findNodeIdForSalon(salonId, piso);
+                        // Construir el salonKey para el mapeo (ej: "B200" o "Comedor")
+                        String salonKey = '';
+                        
+                        // Primero verificar si es un lugar especial (Comedor, Biblioteca, etc.)
+                        final locationDetailLower = widget.course.locationDetail.toLowerCase();
+                        if (locationDetailLower.contains('comedor') || 
+                            locationDetailLower.contains('biblioteca') || 
+                            locationDetailLower.contains('biblio') ||
+                            locationDetailLower.contains('oficina')) {
+                          // Es un lugar especial, usar el locationDetail completo
+                          salonKey = widget.course.locationDetail;
+                          print('🔍 Lugar especial detectado: $salonKey');
+                        } else if (torre != null && salonNumber != null) {
+                          salonKey = '$torre$salonNumber';
+                          print('🔍 Salón extraído: Torre=$torre, Número=$salonNumber, Clave=$salonKey');
+                        } else if (salonNumber != null) {
+                          // Si solo hay número sin torre (piso 1)
+                          salonKey = salonNumber;
+                          print('🔍 Salón extraído (piso 1): Número=$salonNumber, Clave=$salonKey');
                         } else {
-                          // Piso por defecto
-                          toNodeId = _findNodeIdForSalon(salonId, 1);
+                          // Si no hay número, puede ser un lugar especial
+                          salonKey = widget.course.locationDetail;
+                          print('🔍 Lugar especial detectado (fallback): $salonKey');
                         }
                         
-                        // Nodo de origen: entrada principal del piso
-                        // Para piso 1: usar node_puerta_main01 (entrada principal)
-                        // Para piso 2: usar node#37 (nodo que está en la configuración de edges)
-                        // Si estos nodos no existen, el error mostrará qué nodos están disponibles
-                        final fromNodeId = piso == 1 
-                            ? 'node_puerta_main01' 
-                            : (piso == 2 ? 'node#37' : 'node_puerta_main01');
+                        // Mapear salón a nodo de destino dinámicamente desde Firestore
+                        // Esto permite que el sistema se adapte automáticamente si cambian los números de los salones
+                        final toNodeId = await _findNodeIdForSalon(salonKey, piso);
                         
-                        print('🧭 Navegando: piso $piso, desde $fromNodeId hasta $toNodeId (salón: $salonId)');
+                        // Nodo de origen: buscar el nodo más cercano a los ascensores
+                        // Para piso 2, esto será el punto de partida más lógico
+                        String fromNodeId;
+                        if (piso == 1) {
+                          fromNodeId = 'node_puerta_main01';
+                        } else {
+                          // Para piso 2, buscar el nodo más cercano a los ascensores
+                          try {
+                            final findNearestElevatorNode = sl.sl<FindNearestElevatorNodeUseCase>();
+                            final nearestNode = await findNearestElevatorNode.call(piso);
+                            fromNodeId = nearestNode?.id ?? 'node#37'; // Fallback si no encuentra
+                            print('🚪 Nodo de partida (cercano a ascensores): $fromNodeId');
+                          } catch (e) {
+                            print('⚠️ Error buscando nodo cercano a ascensores: $e');
+                            fromNodeId = 'node#37'; // Fallback
+                          }
+                        }
+                        
+                        print('🧭 Navegando: piso $piso, desde $fromNodeId hasta $toNodeId (salón: $salonKey)');
                         print('⚠️ Si falla, verifica que los nodos existan en Firestore: /mapas/piso_$piso/nodes/');
                         
+                        if (!context.mounted) return;
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (context) => buildNavigationForRoom(
@@ -402,36 +430,207 @@ class _CourseCardState extends State<CourseCard> {
     return 1; // Default al piso 1
   }
 
-  /// Encuentra el ID del nodo correspondiente a un salón
+  String? _extractTorre(String locationDetail) {
+    // Formato: "Torre B, Piso 2, Salón 200"
+    final torreMatch = RegExp(r'Torre\s+([A-C])').firstMatch(locationDetail);
+    if (torreMatch != null) {
+      return torreMatch.group(1);
+    }
+    return null;
+  }
+
+  String? _extractSalonNumber(String locationDetail) {
+    // Formato: "Torre B, Piso 2, Salón 200"
+    final salonMatch = RegExp(r'Salón\s+(\d+)').firstMatch(locationDetail);
+    if (salonMatch != null) {
+      return salonMatch.group(1);
+    }
+    return null;
+  }
+
+  /// Encuentra el ID del nodo correspondiente a un salón dinámicamente
   /// 
-  /// Por ahora, usa una lógica simple basada en el número del salón
-  String _findNodeIdForSalon(String salonId, int piso) {
-    // Extraer número del salón (ej: "200" de "A200" o "60TB-200")
-    final numberMatch = RegExp(r'(\d+)').firstMatch(salonId);
-    final salonNumber = numberMatch?.group(1) ?? '';
-    
+  /// Busca en Firestore los nodos que coincidan con el patrón del salón
+  /// Esto permite que el sistema se adapte automáticamente si cambian los números de los salones
+  /// 
+  /// [salonKey] Clave del salón en formato "B200", "A201", o "Comedor, Piso 1" para lugares especiales
+  /// [piso] Número de piso
+  /// 
+  /// Retorna el ID del nodo encontrado o lanza excepción si no se encuentra
+  Future<String> _findNodeIdForSalon(String salonKey, int piso) async {
     if (piso == 1) {
-      // Para piso 1, buscar nodos que contengan el número
-      // Por ahora, usar un nodo genérico si no encontramos uno específico
-      if (salonNumber.isNotEmpty) {
-        // Buscar nodo que contenga el número del salón
-        // Los nodos de salones en piso 1 pueden tener formato como "node_puerta_..."
-        return 'node_32'; // Nodo genérico del piso 1
+      // Para piso 1, buscar dinámicamente en Firestore
+      try {
+        final repository = sl.sl<NavigationRepository>();
+        final nodes = await repository.getNodesForFloor(piso);
+        
+        // Primero verificar si es un lugar especial (antes de buscar números)
+        final locationText = salonKey.toLowerCase();
+        final isSpecialPlace = locationText.contains('comedor') || 
+            locationText.contains('biblioteca') || 
+            locationText.contains('biblio') ||
+            locationText.contains('oficina');
+        
+        if (isSpecialPlace) {
+          // Es un lugar especial, buscar directamente
+          print('🔍 Detectado lugar especial: $salonKey, buscando directamente...');
+          
+          // Buscar nodos especiales del piso 1
+          if (locationText.contains('comedor')) {
+            print('🔍 Buscando nodo de comedor en ${nodes.length} nodos disponibles...');
+            
+            // Buscar nodos que contengan "comedor" en su ID (case insensitive)
+            final comedorNodes = nodes.where((node) => 
+              node.id.toLowerCase().contains('comedor')
+            ).toList();
+            
+            print('   Nodos con "comedor" en ID: ${comedorNodes.length}');
+            if (comedorNodes.isNotEmpty) {
+              for (var node in comedorNodes) {
+                print('     - ${node.id} (${node.x.toStringAsFixed(1)}, ${node.y.toStringAsFixed(1)})');
+              }
+            }
+            
+            // También buscar por ID exacto
+            final exactNode = nodes.where((n) => n.id == 'node_puerta_comedor').toList();
+            print('   Nodos con ID exacto "node_puerta_comedor": ${exactNode.length}');
+            
+            if (comedorNodes.isNotEmpty) {
+              final comedorNode = comedorNodes.first;
+              print('✅ Nodo encontrado para Comedor (piso 1): ${comedorNode.id} (${comedorNode.x.toStringAsFixed(1)}, ${comedorNode.y.toStringAsFixed(1)})');
+              return comedorNode.id;
+            } else if (exactNode.isNotEmpty) {
+              print('✅ Nodo encontrado por ID exacto: node_puerta_comedor');
+              return 'node_puerta_comedor';
+            } else {
+              print('❌ El nodo node_puerta_comedor NO existe en Firestore');
+              print('   Total nodos disponibles: ${nodes.length}');
+              print('   Primeros 20 IDs: ${nodes.take(20).map((n) => n.id).join(", ")}');
+              print('   Buscando nodos con "puerta" en el ID...');
+              final puertaNodes = nodes.where((n) => n.id.contains('puerta')).toList();
+              print('   Nodos con "puerta": ${puertaNodes.map((n) => n.id).join(", ")}');
+              
+              throw Exception('El nodo del comedor (node_puerta_comedor) no existe en Firestore. '
+                  'Por favor, re-inicializa los nodos del piso 1 desde la pantalla de administración.');
+            }
+          } else if (locationText.contains('biblioteca') || locationText.contains('biblio')) {
+            try {
+              final biblioNode = nodes.firstWhere(
+                (node) => node.id.contains('biblio'),
+              );
+              print('✅ Nodo encontrado para Biblioteca (piso 1): ${biblioNode.id}');
+              return biblioNode.id;
+            } catch (e) {
+              print('⚠️ No se encontró nodo de biblioteca, usando fallback');
+              return 'node_puerta_biblio';
+            }
+          } else if (locationText.contains('oficina')) {
+            try {
+              final oficinaNode = nodes.firstWhere(
+                (node) => node.id.contains('oficina'),
+              );
+              print('✅ Nodo encontrado para Oficina (piso 1): ${oficinaNode.id}');
+              return oficinaNode.id;
+            } catch (e) {
+              print('⚠️ No se encontró nodo de oficina, usando fallback');
+              return 'node_puerta_oficina01';
+            }
+          }
+          
+          // Si llegamos aquí, es un lugar especial pero no se encontró
+          print('⚠️ Lugar especial detectado pero no se encontró el nodo: $salonKey');
+          throw Exception('No se encontró el nodo para el lugar especial: $salonKey');
+        } else {
+          // No es un lugar especial, buscar por número de salón
+          // Normalizar la clave para extraer el número del salón
+          final normalized = salonKey.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+          final numberMatch = RegExp(r'(\d+)').firstMatch(normalized);
+          
+          if (numberMatch != null) {
+            final salonNumber = numberMatch.group(1)!;
+            
+            // Buscar nodos que:
+            // 1. Tengan el número del salón en su ID
+            // 2. Tengan el número del salón en su refId
+            // 3. Sean de tipo 'salon'
+            final matchingNodes = nodes.where((node) {
+              final idContains = node.id.contains(salonNumber);
+              final refIdContains = node.refId?.contains(salonNumber) ?? false;
+              final isSalon = node.type == 'salon';
+              
+              return (idContains || refIdContains) && isSalon;
+            }).toList();
+            
+            if (matchingNodes.isNotEmpty) {
+              final nodeId = matchingNodes.first.id;
+              print('✅ Nodo encontrado dinámicamente para salón $salonKey (piso 1): $nodeId');
+              return nodeId;
+            } else {
+              print('⚠️ No se encontró nodo de salón para $salonKey en piso 1');
+              print('   Nodos disponibles: ${nodes.length}');
+              print('   Nodos de tipo salon: ${nodes.where((n) => n.type == 'salon').map((n) => n.id).join(", ")}');
+              // Fallback: usar nodo de entrada principal
+              return 'node_puerta_main01';
+            }
+          } else {
+            print('⚠️ No se pudo extraer número del salón ni identificar lugar especial: $salonKey');
+            print('   Nodos disponibles: ${nodes.length}');
+            print('   Ejemplos de IDs: ${nodes.take(10).map((n) => n.id).join(", ")}');
+            // Fallback: usar nodo de entrada principal
+            return 'node_puerta_main01';
+          }
+        }
+      } catch (e) {
+        print('❌ Error buscando nodo dinámicamente para salón $salonKey (piso 1): $e');
+        rethrow;
       }
-      return 'node_32';
     } else if (piso == 2) {
-      // Para piso 2, buscar nodos con formato "node#XX_sal#A200"
-      if (salonNumber.isNotEmpty) {
-        // Buscar nodo que contenga el número del salón
-        // Ejemplo: "node#34_sal#A200" para salón A200
-        final letterMatch = RegExp(r'([A-Z])').firstMatch(salonId);
-        final letter = letterMatch?.group(1) ?? 'A';
-        return 'node#34_sal#$letter$salonNumber';
+      // Para piso 2, buscar dinámicamente en Firestore
+      // Normalizar la clave: asegurar que esté en formato "A200", "B201", etc.
+      final normalized = salonKey.toUpperCase().replaceAll(RegExp(r'[^A-C0-9]'), '');
+      
+      // Extraer letra de torre (A, B, C) y número del salón
+      final letterMatch = RegExp(r'([A-C])').firstMatch(normalized);
+      final numberMatch = RegExp(r'(\d+)').firstMatch(normalized);
+      
+      if (letterMatch != null && numberMatch != null) {
+        final letter = letterMatch.group(1)!;
+        final number = numberMatch.group(1)!;
+        
+        // Construir patrón de búsqueda: sal#A200, sal#B201, etc.
+        final salonPattern = 'sal#$letter$number';
+        
+        try {
+          final repository = sl.sl<NavigationRepository>();
+          final nodes = await repository.getNodesForFloor(piso);
+          
+          // Buscar nodos que contengan el patrón en su ID
+          final matchingNodes = nodes.where((node) => 
+            node.id.contains(salonPattern)
+          ).toList();
+          
+          if (matchingNodes.isNotEmpty) {
+            final nodeId = matchingNodes.first.id;
+            print('✅ Nodo encontrado dinámicamente para salón $salonKey (piso 2): $nodeId');
+            return nodeId;
+          } else {
+            print('⚠️ No se encontró nodo para salón $salonKey (patrón: $salonPattern)');
+            print('   Nodos disponibles: ${nodes.length}');
+            print('   Ejemplos de IDs: ${nodes.take(10).map((n) => n.id).join(", ")}');
+            // Fallback: usar un nodo genérico
+            return 'node#34_sal#A200';
+          }
+        } catch (e) {
+          print('❌ Error buscando nodo dinámicamente para salón $salonKey (piso 2): $e');
+          return 'node#34_sal#A200'; // Fallback
+        }
+      } else {
+        print('⚠️ No se pudo extraer torre y número del salón: $salonKey');
+        return 'node#34_sal#A200'; // Fallback
       }
-      return 'node#34_sal#A200'; // Nodo por defecto piso 2
     }
     
-    return 'node_32'; // Fallback
+    return 'node_puerta_main01'; // Fallback genérico
   }
 }
 

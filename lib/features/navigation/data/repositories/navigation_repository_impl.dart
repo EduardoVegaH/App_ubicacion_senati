@@ -34,5 +34,10 @@ class NavigationRepositoryImpl implements NavigationRepository {
   Future<List<MapEdge>> getEdgesForFloor(int floor) {
     return firestoreDataSource.getEdgesForFloor(floor);
   }
+  
+  /// Guarda el grafo reemplazando los existentes
+  Future<void> saveFloorGraphReplacing(MapFloor floor) async {
+    return await firestoreDataSource.saveFloorGraph(floor, replaceExisting: true);
+  }
 }
 

@@ -45,10 +45,12 @@ import '../../features/navigation/data/data_sources/svg_map_data_source.dart';
 import '../../features/navigation/data/data_sources/firestore_navigation_data_source.dart';
 import '../../features/navigation/data/repositories/navigation_repository_impl.dart';
 import '../../features/navigation/data/services/graph_initializer.dart';
+import '../../features/navigation/data/services/navigation_auto_initializer.dart';
 import '../../features/navigation/domain/repositories/navigation_repository.dart';
 import '../../features/navigation/domain/use_cases/initialize_floor_graph.dart';
 import '../../features/navigation/domain/use_cases/get_route_to_room.dart';
 import '../../features/navigation/domain/use_cases/initialize_edges_use_case.dart';
+import '../../features/navigation/domain/use_cases/find_nearest_elevator_node.dart';
 
 /// Service Locator global usando GetIt
 final sl = GetIt.instance;
@@ -193,9 +195,17 @@ Future<void> init() async {
   sl.registerLazySingleton<GraphInitializer>(
     () => GraphInitializer(sl<NavigationRepository>()),
   );
+  sl.registerLazySingleton<NavigationAutoInitializer>(
+    () => NavigationAutoInitializer(
+      repository: sl<NavigationRepository>(),
+      svgDataSource: sl<SvgMapDataSource>(),
+      graphInitializer: sl<GraphInitializer>(),
+    ),
+  );
   sl.registerLazySingleton(() => InitializeFloorGraphUseCase(sl<NavigationRepository>()));
   sl.registerLazySingleton(() => InitializeEdgesUseCase(sl<GraphInitializer>()));
   sl.registerLazySingleton(() => GetRouteToRoomUseCase(sl<NavigationRepository>()));
+  sl.registerLazySingleton(() => FindNearestElevatorNodeUseCase(sl<NavigationRepository>()));
 
 }
 

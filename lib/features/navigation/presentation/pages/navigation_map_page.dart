@@ -3,6 +3,7 @@ import '../../../../core/di/injection_container.dart';
 import '../../../../app/styles/app_styles.dart';
 import '../../../../core/widgets/app_bar/index.dart';
 import '../../domain/index.dart';
+import '../../domain/repositories/navigation_repository.dart';
 import '../../domain/use_cases/get_route_to_room.dart';
 import '../widgets/map_canvas.dart';
 
@@ -26,8 +27,10 @@ class NavigationMapPage extends StatefulWidget {
 class _NavigationMapPageState extends State<NavigationMapPage> {
   late final GetRouteToRoomUseCase _getRouteToRoomUseCase;
   List<MapNode>? _pathNodes;
+  MapNode? _entranceNode; // Nodo de inicio (entrada)
   bool _loading = true;
   String? _errorMessage;
+  bool _showNodes = true; // Mostrar nodos azules por defecto para debugging
 
   @override
   void initState() {
@@ -58,6 +61,58 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
     try {
       print('🔍 Calculando ruta: piso ${widget.floor}, desde ${widget.fromNodeId} hasta ${widget.toNodeId}');
       
+      // Verificar que los nodos existan antes de calcular la ruta
+      final repository = sl<NavigationRepository>();
+      final nodes = await repository.getNodesForFloor(widget.floor);
+      print('📊 Nodos disponibles en piso ${widget.floor}: ${nodes.length}');
+      
+      if (nodes.isEmpty) {
+        throw Exception('No hay nodos inicializados para el piso ${widget.floor}. '
+            'Por favor, inicializa los nodos desde la pantalla de administración.');
+      }
+      
+      // Listar algunos IDs de nodos disponibles para debugging
+      print('📋 Ejemplos de IDs de nodos disponibles en Firestore:');
+      for (var i = 0; i < (nodes.length > 10 ? 10 : nodes.length); i++) {
+        final node = nodes[i];
+        print('   - ${node.id} (${node.x.toStringAsFixed(1)}, ${node.y.toStringAsFixed(1)})');
+      }
+      
+      // Verificar si los nodos tienen el formato correcto (node#XX)
+      final hasNewFormat = nodes.any((n) => n.id.contains('#'));
+      if (!hasNewFormat && widget.floor == 2) {
+        print('⚠️ ADVERTENCIA: Los nodos en Firestore NO tienen el formato nuevo (node#XX)');
+        print('⚠️ Los nodos deberían tener formato como: node#37, node#34_sal#A200, etc.');
+        print('⚠️ Por favor, re-inicializa los nodos desde la pantalla de administración.');
+      }
+      
+      // Verificar que el nodo origen existe
+      final fromNodeExists = nodes.any((n) => n.id == widget.fromNodeId);
+      if (!fromNodeExists) {
+        print('❌ Nodo origen no encontrado: ${widget.fromNodeId}');
+        print('💡 Nodos disponibles que podrían servir como origen:');
+        // Buscar nodos de escalera o entrada
+        final entranceNodes = nodes.where((n) => 
+          n.id.contains('escalera') || 
+          n.id.contains('puerta') || 
+          n.id.contains('entrada') ||
+          n.type == 'escalera'
+        ).take(5).toList();
+        for (var node in entranceNodes) {
+          print('   - ${node.id} (${node.type ?? "sin tipo"})');
+        }
+        throw Exception('Nodo origen "${widget.fromNodeId}" no encontrado en piso ${widget.floor}. '
+            'Verifica que los nodos estén inicializados correctamente.');
+      }
+      
+      // Verificar que el nodo destino existe
+      final toNodeExists = nodes.any((n) => n.id == widget.toNodeId);
+      if (!toNodeExists) {
+        print('❌ Nodo destino no encontrado: ${widget.toNodeId}');
+        throw Exception('Nodo destino "${widget.toNodeId}" no encontrado en piso ${widget.floor}. '
+            'Verifica que el ID del salón sea correcto.');
+      }
+      
       final path = await _getRouteToRoomUseCase.call(
         floor: widget.floor,
         fromNodeId: widget.fromNodeId,
@@ -65,15 +120,33 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
       );
 
       print('✅ Ruta encontrada: ${path.length} nodos');
-      for (var node in path) {
-        print('  - ${node.id} (${node.x}, ${node.y})');
+      for (var i = 0; i < path.length; i++) {
+        final node = path[i];
+        print('  ${i + 1}. ${node.id} (${node.x.toStringAsFixed(1)}, ${node.y.toStringAsFixed(1)})');
+      }
+      
+      // Verificar que la ruta comienza en el nodo correcto
+      if (path.isNotEmpty && path.first.id != widget.fromNodeId) {
+        print('⚠️ ADVERTENCIA: La ruta no comienza en el nodo de inicio esperado');
+        print('   Esperado: ${widget.fromNodeId}');
+        print('   Encontrado: ${path.first.id}');
+      }
+      
+      // Verificar que la ruta termina en el nodo correcto
+      if (path.isNotEmpty && path.last.id != widget.toNodeId) {
+        print('⚠️ ADVERTENCIA: La ruta no termina en el nodo de destino esperado');
+        print('   Esperado: ${widget.toNodeId}');
+        print('   Encontrado: ${path.last.id}');
       }
 
       if (mounted) {
+        // El primer nodo de la ruta es el nodo de entrada
         setState(() {
           _pathNodes = path;
+          _entranceNode = path.isNotEmpty ? path.first : null;
           _loading = false;
         });
+        print('✅ Estado actualizado: ${path.length} nodos en la ruta');
       }
     } catch (e, stackTrace) {
       print('❌ Error calculando ruta: $e');
@@ -164,10 +237,33 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
                   ),
                 )
               : _pathNodes != null && _pathNodes!.isNotEmpty
-                  ? MapCanvas(
-                      floor: widget.floor,
-                      svgAssetPath: _getSvgAssetPath(widget.floor),
-                      pathNodes: _pathNodes!,
+                  ? Stack(
+                      children: [
+                        MapCanvas(
+                          floor: widget.floor,
+                          svgAssetPath: _getSvgAssetPath(widget.floor),
+                          pathNodes: _pathNodes!,
+                          entranceNode: _entranceNode,
+                          showNodes: _showNodes,
+                        ),
+                        // Toggle para mostrar/ocultar nodos
+                        Positioned(
+                          top: 16,
+                          left: 16,
+                          child: FloatingActionButton.small(
+                            onPressed: () {
+                              setState(() {
+                                _showNodes = !_showNodes;
+                              });
+                            },
+                            backgroundColor: AppStyles.primaryColor,
+                            child: Icon(
+                              _showNodes ? Icons.visibility : Icons.visibility_off,
+                              color: AppStyles.textOnDark,
+                            ),
+                          ),
+                        ),
+                      ],
                     )
                   : const Center(
                       child: Text('No se encontró una ruta'),

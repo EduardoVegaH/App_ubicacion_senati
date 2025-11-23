@@ -2,3 +2,4 @@
 export 'initialize_floor_graph.dart';
 export 'get_route_to_room.dart';
 export 'initialize_edges_use_case.dart';
+export 'find_nearest_elevator_node.dart';
