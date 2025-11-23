@@ -3,7 +3,7 @@ import '../../../home/domain/entities/student_entity.dart';
 import '../../../home/domain/entities/course_status_entity.dart';
 import '../../../home/domain/entities/attendance_entity.dart';
 import '../../../home/domain/use_cases/get_course_status_use_case.dart';
-import '../../../navigation/presentation/pages/map_navigator_page.dart';
+import '../../../navigation/presentation/index.dart';
 import '../../../../core/widgets/primary_button/primary_button.dart';
 import '../../../../../app/styles/text_styles.dart';
 import '../../../../../app/styles/app_spacing.dart';
@@ -250,12 +250,39 @@ class _CourseCardState extends State<CourseCard> {
                         final salonId = _extractSalonId(widget.course.locationCode);
                         final piso = _extractPiso(widget.course.locationDetail);
                         
+                        // Mapear salón a nodo de destino
+                        // Por ahora, usar un formato simple: node_puerta_main01 como origen
+                        // y buscar el nodo del salón como destino
+                        String toNodeId;
+                        if (piso == 1) {
+                          // Para piso 1, buscar nodo del salón
+                          // Si el salón contiene "sal" o "A200", etc., buscar nodo correspondiente
+                          toNodeId = _findNodeIdForSalon(salonId, piso);
+                        } else if (piso == 2) {
+                          // Para piso 2, buscar nodo del salón
+                          toNodeId = _findNodeIdForSalon(salonId, piso);
+                        } else {
+                          // Piso por defecto
+                          toNodeId = _findNodeIdForSalon(salonId, 1);
+                        }
+                        
+                        // Nodo de origen: entrada principal del piso
+                        // Para piso 1: usar node_puerta_main01 (entrada principal)
+                        // Para piso 2: usar node#37 (nodo que está en la configuración de edges)
+                        // Si estos nodos no existen, el error mostrará qué nodos están disponibles
+                        final fromNodeId = piso == 1 
+                            ? 'node_puerta_main01' 
+                            : (piso == 2 ? 'node#37' : 'node_puerta_main01');
+                        
+                        print('🧭 Navegando: piso $piso, desde $fromNodeId hasta $toNodeId (salón: $salonId)');
+                        print('⚠️ Si falla, verifica que los nodos existan en Firestore: /mapas/piso_$piso/nodes/');
+                        
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) => MapNavigatorPage(
-                              objetivoSalonId: salonId,
-                              piso: piso,
-                              salonNombre: widget.course.locationDetail,
+                            builder: (context) => buildNavigationForRoom(
+                              floor: piso > 0 ? piso : 1,
+                              fromNodeId: fromNodeId,
+                              toNodeId: toNodeId,
                             ),
                           ),
                         );
@@ -373,6 +400,38 @@ class _CourseCardState extends State<CourseCard> {
       return int.tryParse(pisoMatch.group(1) ?? '1') ?? 1;
     }
     return 1; // Default al piso 1
+  }
+
+  /// Encuentra el ID del nodo correspondiente a un salón
+  /// 
+  /// Por ahora, usa una lógica simple basada en el número del salón
+  String _findNodeIdForSalon(String salonId, int piso) {
+    // Extraer número del salón (ej: "200" de "A200" o "60TB-200")
+    final numberMatch = RegExp(r'(\d+)').firstMatch(salonId);
+    final salonNumber = numberMatch?.group(1) ?? '';
+    
+    if (piso == 1) {
+      // Para piso 1, buscar nodos que contengan el número
+      // Por ahora, usar un nodo genérico si no encontramos uno específico
+      if (salonNumber.isNotEmpty) {
+        // Buscar nodo que contenga el número del salón
+        // Los nodos de salones en piso 1 pueden tener formato como "node_puerta_..."
+        return 'node_32'; // Nodo genérico del piso 1
+      }
+      return 'node_32';
+    } else if (piso == 2) {
+      // Para piso 2, buscar nodos con formato "node#XX_sal#A200"
+      if (salonNumber.isNotEmpty) {
+        // Buscar nodo que contenga el número del salón
+        // Ejemplo: "node#34_sal#A200" para salón A200
+        final letterMatch = RegExp(r'([A-Z])').firstMatch(salonId);
+        final letter = letterMatch?.group(1) ?? 'A';
+        return 'node#34_sal#$letter$salonNumber';
+      }
+      return 'node#34_sal#A200'; // Nodo por defecto piso 2
+    }
+    
+    return 'node_32'; // Fallback
   }
 }
 

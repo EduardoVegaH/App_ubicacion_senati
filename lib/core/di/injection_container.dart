@@ -41,6 +41,14 @@ import '../../features/home/domain/use_cases/schedule_notifications_use_case.dar
 import '../../features/home/domain/use_cases/update_location_use_case.dart';
 import '../../features/home/domain/use_cases/update_location_periodically_use_case.dart';
 import '../../features/home/domain/use_cases/validate_attendance_use_case.dart';
+import '../../features/navigation/data/data_sources/svg_map_data_source.dart';
+import '../../features/navigation/data/data_sources/firestore_navigation_data_source.dart';
+import '../../features/navigation/data/repositories/navigation_repository_impl.dart';
+import '../../features/navigation/data/services/graph_initializer.dart';
+import '../../features/navigation/domain/repositories/navigation_repository.dart';
+import '../../features/navigation/domain/use_cases/initialize_floor_graph.dart';
+import '../../features/navigation/domain/use_cases/get_route_to_room.dart';
+import '../../features/navigation/domain/use_cases/initialize_edges_use_case.dart';
 
 /// Service Locator global usando GetIt
 final sl = GetIt.instance;
@@ -82,6 +90,14 @@ Future<void> init() async {
     () => NotificationDataSource(),
   );
 
+  // Navigation
+  sl.registerLazySingleton<SvgMapDataSource>(
+    () => SvgMapDataSource(),
+  );
+  sl.registerLazySingleton<FirestoreNavigationDataSource>(
+    () => FirestoreNavigationDataSource(),
+  );
+
   // ============================================
   // 🟢 REPOSITORIES
   // ============================================
@@ -111,6 +127,14 @@ Future<void> init() async {
     () => HomeRepositoryImpl(
       sl<HomeRemoteDataSource>(),
       sl<LocationDataSource>(),
+    ),
+  );
+
+  // Navigation
+  sl.registerLazySingleton<NavigationRepository>(
+    () => NavigationRepositoryImpl(
+      svgDataSource: sl<SvgMapDataSource>(),
+      firestoreDataSource: sl<FirestoreNavigationDataSource>(),
     ),
   );
 
@@ -164,6 +188,14 @@ Future<void> init() async {
     sl<auth_domain.GetCurrentUserUseCase>(),
   ));
   sl.registerLazySingleton(() => ValidateAttendanceUseCase(sl<GetCourseStatusUseCase>()));
+
+  // Navigation
+  sl.registerLazySingleton<GraphInitializer>(
+    () => GraphInitializer(sl<NavigationRepository>()),
+  );
+  sl.registerLazySingleton(() => InitializeFloorGraphUseCase(sl<NavigationRepository>()));
+  sl.registerLazySingleton(() => InitializeEdgesUseCase(sl<GraphInitializer>()));
+  sl.registerLazySingleton(() => GetRouteToRoomUseCase(sl<NavigationRepository>()));
 
 }
 

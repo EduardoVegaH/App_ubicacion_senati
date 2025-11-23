@@ -1,4 +1,6 @@
 /// Barrel export para data layer de navigation
-///
-/// Nota: La funcionalidad de mapas/nodos fue removida temporalmente.
-/// Este barrel export se mantiene para futuras expansiones.
+export 'models/index.dart';
+export 'data_sources/index.dart';
+export 'repositories/index.dart';
+export 'config/index.dart';
+export 'services/index.dart';

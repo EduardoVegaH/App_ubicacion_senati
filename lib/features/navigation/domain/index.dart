@@ -1,4 +1,4 @@
 /// Barrel export para domain layer de navigation
-///
-/// Nota: La funcionalidad de mapas/nodos fue removida temporalmente.
-/// Este barrel export se mantiene para futuras expansiones.
+export 'entities/index.dart';
+export 'repositories/index.dart';
+export 'use_cases/index.dart';
