@@ -1,0 +1,23 @@
+[33m4a1dc4a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mVersionSprint5[m[33m, [m[1;31morigin/VersionSprint5[m[33m)[m La brujula necesita severos cambios para la movilizacion del maracdor
+[33m5abcf74[m La brujula esta calibrada, pendiente los otros 3 sensores
+[33m1c4ef63[m Los sensores estan registrando
+[33mc519bdb[m Se agregaron por el momento 3 sensores porque el barometro no es compatible
+[33m7ee9eb6[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m, [m[1;32mbackup-main[m[33m)[m Se arreglo el gps de senati, ahora identifica si esta dentro o no
+[33m7ad4e28[m Merge pull request #2 from EduardoVegaH/feat/bd
+[33mfa6d715[m Merge pull request #1 from EduardoVegaH/AppUbicacionSenati2
+[33m93d821d[m[33m ([m[1;31morigin/feat/bd[m[33m)[m mapa
+[33mb589bdb[m chatbot
+[33md8c4268[m[33m ([m[1;31morigin/AppUbicacionSenati2[m[33m)[m La app ahora mantiene la secion abierta hasta que alguien la cierre
+[33m128ae1f[m menu
+[33m4b679b6[m Actualizacion de coordenadas del poligono senati
+[33m0cb035d[m feat: design 2
+[33m5bf54c0[m feat:design
+[33me4d76f8[m Actualizacion GPS, localizacion dentro del campus
+[33m8b4b735[m[33m ([m[1;31morigin/view[m[33m)[m Sprint 3 - Mostrar foto real del estudiante desde Firebase
+[33mfd7e57e[m Sprint 2 - firebase y login estan correctamente conectados
+[33mbe56446[m feat: color blue
+[33m809d06e[m Subiendo todo el proyecto completo inicial
+[33m5800453[m mejoras a la app
+[33m02a0e73[m app ajustada
+[33m54f71b8[m Diseño proyecto
+[33m4a489a7[m Sprint 1 - Configuración inicial completada

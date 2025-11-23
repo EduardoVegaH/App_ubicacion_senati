@@ -30,12 +30,13 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
   static const double _puntoInicialX = 50.0;
   static const double _puntoInicialY = 50.0;
   static const String _puntoInicialId = 'punto-inicial';
+  static const double pixelScale = 10.8;
 
   List<NodoMapa> _nodos = [];
   String? _salonSeleccionado;
   List<NodoMapa> _ruta = [];
   bool _cargandoNodos = true;
-  
+
   // Chatbot
   final ChatbotService _chatbotService = ChatbotService();
   final TextEditingController _chatController = TextEditingController();
@@ -44,20 +45,21 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
   bool _isChatLoading = false;
   bool _isChatOpen = false;
 
-  final sensorService = SensorService();
+  // Sensor service para posición y orientación
+  final SensorService _sensorService = SensorService();
 
   @override
   void initState() {
     super.initState();
-    sensorService.start();
-    sensorService.onDataChanged = () => setState(() {});
+    _sensorService.start();
+    _sensorService.onDataChanged = () => setState(() {});
     _cargarNodos();
     _inicializarChatbot();
   }
 
   @override
   void dispose() {
-    sensorService.stop();
+    _sensorService.stop();
     _chatController.dispose();
     _chatScrollController.dispose();
     super.dispose();
@@ -69,23 +71,26 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
     final salonesDisponibles = _obtenerSalonesDisponibles()
         .map((n) => n.id)
         .join(', ');
-    
+
     _chatbotService.updateStudentData({
       'contexto': 'navegacion',
       'salones_disponibles': salonesDisponibles,
     });
-    
+
     // Mensaje de bienvenida
-    _chatMessages.add(ChatMessage(
-      text: '¡Hola! Soy tu asistente de navegación. Puedo ayudarte a encontrar salones y calcular rutas.\n\n'
+    _chatMessages.add(
+      ChatMessage(
+        text:
+            '¡Hola! Soy tu asistente de navegación. Puedo ayudarte a encontrar salones y calcular rutas.\n\n'
             'Puedes escribir:\n'
             '• "llévame al salón 201"\n'
             '• "¿dónde está el salón 202?"\n'
             '• "ruta al salón 203"\n\n'
             'También puedes seleccionar un destino desde el menú superior.',
-      isUser: false,
-      timestamp: DateTime.now(),
-    ));
+        isUser: false,
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 
   /// Carga los nodos del mapa desde Firestore o assets
@@ -120,18 +125,21 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
 
       // Agregar el punto inicial a la lista de nodos si no existe
       if (NodoMapa.buscarPorId(_nodos, _puntoInicialId) == null) {
-        _nodos.add(NodoMapa(
-          id: _puntoInicialId,
-          x: _puntoInicialX,
-          y: _puntoInicialY,
-          conexiones: _nodos.isNotEmpty ? [_nodos.first.id] : [],
-        ));
+        _nodos.add(
+          NodoMapa(
+            id: _puntoInicialId,
+            x: _puntoInicialX,
+            y: _puntoInicialY,
+            conexiones: _nodos.isNotEmpty ? [_nodos.first.id] : [],
+          ),
+        );
       }
 
       // Validar que el salón seleccionado existe en los nuevos nodos
       if (_salonSeleccionado != null) {
-        final existe = _obtenerSalonesDisponibles()
-            .any((nodo) => nodo.id == _salonSeleccionado);
+        final existe = _obtenerSalonesDisponibles().any(
+          (nodo) => nodo.id == _salonSeleccionado,
+        );
         if (!existe) {
           _salonSeleccionado = null;
           _ruta = [];
@@ -141,7 +149,7 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
       setState(() {
         _cargandoNodos = false;
       });
-      
+
       // Reinicializar el chatbot con los nuevos nodos
       if (mounted) {
         _inicializarChatbot();
@@ -198,7 +206,7 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
 
     // Buscar el nodo destino
     final nodoDestino = NodoMapa.buscarPorId(_nodos, idDestino);
-    
+
     if (nodoDestino == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -278,7 +286,7 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
   /// Extrae el número de salón de un mensaje (ej: "llévame al salón 101" -> "salon-101")
   String? _extraerSalonDelMensaje(String mensaje) {
     final mensajeLower = mensaje.toLowerCase();
-    
+
     // Buscar patrones como "salón 101", "salon 201", "101", etc.
     final patrones = [
       RegExp(r'sal[oó]n\s+(\d+)', caseSensitive: false),
@@ -292,7 +300,7 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
       if (match != null) {
         final numero = match.group(1);
         if (numero == null) continue;
-        
+
         // Intentar diferentes formatos de ID
         final posiblesIds = [
           'salon-$numero',
@@ -300,7 +308,7 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
           numero,
           'salon-$numero',
         ];
-        
+
         // Buscar el ID que existe en los nodos
         for (final id in posiblesIds) {
           final nodo = NodoMapa.buscarPorId(_nodos, id);
@@ -308,13 +316,13 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
             return id;
           }
         }
-        
+
         // Si no se encuentra exacto, buscar por coincidencia parcial
         final nodosCoincidentes = _nodos.where((nodo) {
           return nodo.id.toLowerCase().contains(numero) ||
-                 nodo.id.toLowerCase().contains('salon-$numero');
+              nodo.id.toLowerCase().contains('salon-$numero');
         }).toList();
-        
+
         if (nodosCoincidentes.isNotEmpty) {
           return nodosCoincidentes.first.id;
         }
@@ -329,11 +337,9 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
 
     // Agregar mensaje del usuario
     setState(() {
-      _chatMessages.add(ChatMessage(
-        text: mensaje,
-        isUser: true,
-        timestamp: DateTime.now(),
-      ));
+      _chatMessages.add(
+        ChatMessage(text: mensaje, isUser: true, timestamp: DateTime.now()),
+      );
       _isChatLoading = true;
     });
 
@@ -342,32 +348,38 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
 
     // Detectar si el mensaje contiene un comando de navegación
     final salonId = _extraerSalonDelMensaje(mensaje.toLowerCase());
-    
+
     if (salonId != null) {
       // Calcular ruta automáticamente
       _calcularRuta(salonId);
-      
+
       final nodo = NodoMapa.buscarPorId(_nodos, salonId);
       if (nodo != null && _ruta.isNotEmpty) {
         final distancia = CalculadorRutas.calcularDistanciaRuta(_ruta);
         setState(() {
-          _chatMessages.add(ChatMessage(
-            text: '✅ Ruta calculada al ${nodo.id}:\n\n'
+          _chatMessages.add(
+            ChatMessage(
+              text:
+                  '✅ Ruta calculada al ${nodo.id}:\n\n'
                   '📍 Pasos: ${_ruta.length}\n'
                   '📏 Distancia: ${distancia.toStringAsFixed(1)} unidades\n\n'
                   'La ruta se ha dibujado en el mapa.',
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
+              isUser: false,
+              timestamp: DateTime.now(),
+            ),
+          );
           _isChatLoading = false;
         });
       } else {
         setState(() {
-          _chatMessages.add(ChatMessage(
-            text: '❌ No se pudo encontrar una ruta al ${salonId}. Verifica que el salón existe y está conectado.',
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
+          _chatMessages.add(
+            ChatMessage(
+              text:
+                  '❌ No se pudo encontrar una ruta al ${salonId}. Verifica que el salón existe y está conectado.',
+              isUser: false,
+              timestamp: DateTime.now(),
+            ),
+          );
           _isChatLoading = false;
         });
       }
@@ -378,30 +390,35 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
         final salonesDisponibles = _obtenerSalonesDisponibles()
             .map((n) => n.id)
             .join(', ');
-        
-        final mensajeConContexto = 'Contexto: Estoy en una app de navegación de SENATI. '
+
+        final mensajeConContexto =
+            'Contexto: Estoy en una app de navegación de SENATI. '
             'Salones disponibles: $salonesDisponibles. '
             'Puedo calcular rutas a cualquier salón. '
             'Si el usuario pide ir a un salón, puedo calcular la ruta. '
             'Mensaje del usuario: $mensaje';
-        
+
         final respuesta = await _chatbotService.sendMessage(mensajeConContexto);
-        
+
         setState(() {
-          _chatMessages.add(ChatMessage(
-            text: respuesta,
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
+          _chatMessages.add(
+            ChatMessage(
+              text: respuesta,
+              isUser: false,
+              timestamp: DateTime.now(),
+            ),
+          );
           _isChatLoading = false;
         });
       } catch (e) {
         setState(() {
-          _chatMessages.add(ChatMessage(
-            text: '❌ Error al procesar tu mensaje: $e',
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
+          _chatMessages.add(
+            ChatMessage(
+              text: '❌ Error al procesar tu mensaje: $e',
+              isUser: false,
+              timestamp: DateTime.now(),
+            ),
+          );
           _isChatLoading = false;
         });
       }
@@ -488,7 +505,9 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                               Text(
                                 widget.locationDetail!,
                                 style: TextStyle(
-                                  fontSize: isLargePhone ? 16 : (isTablet ? 17 : 15),
+                                  fontSize: isLargePhone
+                                      ? 16
+                                      : (isTablet ? 17 : 15),
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
@@ -500,7 +519,9 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                               Text(
                                 widget.locationName!,
                                 style: TextStyle(
-                                  fontSize: isLargePhone ? 13 : (isTablet ? 14 : 12),
+                                  fontSize: isLargePhone
+                                      ? 13
+                                      : (isTablet ? 14 : 12),
                                   color: Colors.white.withOpacity(0.9),
                                 ),
                                 maxLines: 1,
@@ -510,26 +531,33 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                           ],
                         ),
                       ),
-                      // Icono de navegación
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.navigation,
-                          color: Colors.white,
-                          size: 20,
+                      // Botón de calibración
+                      GestureDetector(
+                        onTap: () => _showCalibrationDialog(context),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.compass_calibration,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   // Dropdown para seleccionar destino
-                  if (!_cargandoNodos && _obtenerSalonesDisponibles().isNotEmpty) ...[
+                  if (!_cargandoNodos &&
+                      _obtenerSalonesDisponibles().isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
@@ -545,23 +573,28 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                           Expanded(
                             child: Builder(
                               builder: (context) {
-                                final salonesDisponibles = _obtenerSalonesDisponibles();
+                                final salonesDisponibles =
+                                    _obtenerSalonesDisponibles();
                                 // Validar que el valor seleccionado existe en los items
                                 String? valorValido = _salonSeleccionado;
                                 if (valorValido != null) {
-                                  final existe = salonesDisponibles.any((nodo) => nodo.id == valorValido);
+                                  final existe = salonesDisponibles.any(
+                                    (nodo) => nodo.id == valorValido,
+                                  );
                                   if (!existe) {
                                     valorValido = null;
                                   }
                                 }
-                                
+
                                 return DropdownButton<String>(
                                   value: valorValido,
                                   hint: Text(
                                     'Selecciona un destino',
                                     style: TextStyle(
                                       color: Colors.white.withOpacity(0.9),
-                                      fontSize: isLargePhone ? 14 : (isTablet ? 15 : 13),
+                                      fontSize: isLargePhone
+                                          ? 14
+                                          : (isTablet ? 15 : 13),
                                     ),
                                   ),
                                   isExpanded: true,
@@ -573,14 +606,18 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                                   dropdownColor: const Color(0xFF1B38E3),
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: isLargePhone ? 14 : (isTablet ? 15 : 13),
+                                    fontSize: isLargePhone
+                                        ? 14
+                                        : (isTablet ? 15 : 13),
                                   ),
                                   items: salonesDisponibles.map((nodo) {
                                     return DropdownMenuItem<String>(
                                       value: nodo.id,
                                       child: Text(
                                         nodo.id,
-                                        style: const TextStyle(color: Colors.white),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
                                       ),
                                     );
                                   }).toList(),
@@ -608,46 +645,103 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
             Expanded(
               child: Container(
                 color: Colors.white,
-                child: Stack(
-                  children: [
-                    // Mapa interactivo
-                    MapaInteractivo(
-                      svgAssetPath: svgPath,
-                      height: null, // Usará todo el espacio disponible
-                      showControls: true,
-                      onElementTapped: _onElementoTocado,
-                    ),
-
-                    // Ruta dibujada
-                    if (_ruta.isNotEmpty)
-                      CustomPaint(
-                        painter: RutaPainter(
-                          puntos: _ruta.map((nodo) => Offset(nodo.x, nodo.y)).toList(),
-                          color: const Color(0xFF1B38E3),
-                          strokeWidth: 4.0,
-                          mostrarPuntos: true,
-                          puntoRadio: 6.0,
-                          mostrarFlechas: true,
-                          flechaColor: const Color(0xFF1B38E3),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Dimensiones del SVG original
+                    const double svgWidth = 1412;
+                    const double svgHeight = 2806;
+                    
+                    // Calcular el tamaño del SVG renderizado (con BoxFit.contain)
+                    final double widgetWidth = constraints.maxWidth;
+                    final double widgetHeight = constraints.maxHeight;
+                    final double svgAspectRatio = svgWidth / svgHeight;
+                    final double widgetAspectRatio = widgetWidth / widgetHeight;
+                    
+                    double displayWidth;
+                    double displayHeight;
+                    double offsetX = 0;
+                    double offsetY = 0;
+                    
+                    if (svgAspectRatio > widgetAspectRatio) {
+                      // SVG es más ancho, se ajusta al ancho
+                      displayWidth = widgetWidth;
+                      displayHeight = widgetWidth / svgAspectRatio;
+                      offsetY = (widgetHeight - displayHeight) / 2;
+                    } else {
+                      // SVG es más alto, se ajusta a la altura
+                      displayHeight = widgetHeight;
+                      displayWidth = widgetHeight * svgAspectRatio;
+                      offsetX = (widgetWidth - displayWidth) / 2;
+                    }
+                    
+                    // Calcular posición del marcador del usuario
+                    // Convertir posX y posY del sensor (en metros) a coordenadas del SVG
+                    final double userSvgX = _puntoInicialX + (_sensorService.posX * pixelScale);
+                    final double userSvgY = _puntoInicialY + (_sensorService.posY * pixelScale);
+                    
+                    // Convertir coordenadas del SVG a coordenadas de pantalla
+                    final double markerScreenX = offsetX + (userSvgX / svgWidth) * displayWidth;
+                    final double markerScreenY = offsetY + (userSvgY / svgHeight) * displayHeight;
+                    
+                    return Stack(
+                      children: [
+                        // Mapa interactivo
+                        MapaInteractivo(
+                          svgAssetPath: svgPath,
+                          height: null, // Usará todo el espacio disponible
+                          showControls: true,
+                          onElementTapped: _onElementoTocado,
                         ),
-                      ),
 
-                    // Dibujar la ruta sobre el mapa
-                    // --- FLECHA DEL USUARIO (POSICIÓN + ORIENTACIÓN) ---
-                      Positioned(
-                        left: sensorService.posX,
-                        top: sensorService.posY,
-                        child: Transform.rotate(
-                          angle: sensorService.heading,
-                          child: const Icon(
-                            Icons.navigation,
-                            color: Colors.red,
-                            size: 32,
+                        // Ruta dibujada
+                        if (_ruta.isNotEmpty)
+                          CustomPaint(
+                            painter: RutaPainter(
+                              puntos: _ruta
+                                  .map((nodo) => Offset(nodo.x, nodo.y))
+                                  .toList(),
+                              color: const Color(0xFF1B38E3),
+                              strokeWidth: 4.0,
+                              mostrarPuntos: true,
+                              puntoRadio: 6.0,
+                              mostrarFlechas: true,
+                              flechaColor: const Color(0xFF1B38E3),
+                            ),
+                          ),
+
+                        // Marcador del usuario
+                        Positioned(
+                          left: markerScreenX - 15, // Centrar el marcador (30/2 = 15)
+                          top: markerScreenY - 15,
+                          child: Transform.rotate(
+                            angle: _sensorService.heading,
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1B38E3), // Azul del tema
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 3,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: CustomPaint(
+                                painter: _UserMarkerPainter(),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-
-                  ],
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -659,10 +753,7 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   border: Border(
-                    top: BorderSide(
-                      color: Colors.grey[300]!,
-                      width: 1,
-                    ),
+                    top: BorderSide(color: Colors.grey[300]!, width: 1),
                   ),
                   boxShadow: [
                     BoxShadow(
@@ -676,7 +767,10 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                   children: [
                     // Header del chat
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: const BoxDecoration(
                         color: Color(0xFF1B38E3),
                         borderRadius: BorderRadius.only(
@@ -703,43 +797,51 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                             onPressed: _toggleChat,
                           ),
                         ],
                       ),
                     ),
-                    
+
                     // Lista de mensajes
                     Expanded(
                       child: ListView.builder(
                         controller: _chatScrollController,
                         padding: const EdgeInsets.all(16),
-                        itemCount: _chatMessages.length + (_isChatLoading ? 1 : 0),
+                        itemCount:
+                            _chatMessages.length + (_isChatLoading ? 1 : 0),
                         itemBuilder: (context, index) {
                           if (index == _chatMessages.length) {
                             return const Padding(
                               padding: EdgeInsets.all(8.0),
                               child: Center(
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                             );
                           }
-                          return _buildChatBubble(_chatMessages[index], isLargePhone, isTablet);
+                          return _buildChatBubble(
+                            _chatMessages[index],
+                            isLargePhone,
+                            isTablet,
+                          );
                         },
                       ),
                     ),
-                    
+
                     // Campo de entrada
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Colors.grey[50],
                         border: Border(
-                          top: BorderSide(
-                            color: Colors.grey[300]!,
-                            width: 1,
-                          ),
+                          top: BorderSide(color: Colors.grey[300]!, width: 1),
                         ),
                       ),
                       child: Row(
@@ -752,11 +854,15 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                                 hintStyle: TextStyle(color: Colors.grey[600]),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(24),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(24),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(24),
@@ -774,7 +880,8 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                               ),
                               maxLines: null,
                               textInputAction: TextInputAction.send,
-                              onSubmitted: (_) => _procesarMensajeChat(_chatController.text),
+                              onSubmitted: (_) =>
+                                  _procesarMensajeChat(_chatController.text),
                               enabled: !_isChatLoading,
                             ),
                           ),
@@ -791,13 +898,18 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                                       height: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
                                       ),
                                     )
                                   : const Icon(Icons.send, color: Colors.white),
                               onPressed: _isChatLoading
                                   ? null
-                                  : () => _procesarMensajeChat(_chatController.text),
+                                  : () => _procesarMensajeChat(
+                                      _chatController.text,
+                                    ),
                             ),
                           ),
                         ],
@@ -806,7 +918,7 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                   ],
                 ),
               ),
-            
+
             // Barra inferior con botón de chat o información
             Container(
               width: double.infinity,
@@ -817,10 +929,7 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFFF5F5F5),
                 border: Border(
-                  top: BorderSide(
-                    color: Colors.grey[300]!,
-                    width: 1,
-                  ),
+                  top: BorderSide(color: Colors.grey[300]!, width: 1),
                 ),
               ),
               child: Row(
@@ -837,8 +946,8 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                         _cargandoNodos
                             ? 'Cargando mapa...'
                             : _ruta.isNotEmpty
-                                ? 'Ruta calculada: ${_ruta.length} pasos'
-                                : 'Toca un salón o usa el chat para navegar',
+                            ? 'Ruta calculada: ${_ruta.length} pasos'
+                            : 'Toca un salón o usa el chat para navegar',
                         style: TextStyle(
                           fontSize: isLargePhone ? 12 : (isTablet ? 13 : 11),
                           color: const Color(0xFF757575),
@@ -872,7 +981,9 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                   // Botón para abrir/cerrar chat
                   IconButton(
                     icon: Icon(
-                      _isChatOpen ? Icons.keyboard_arrow_down : Icons.chat_bubble_outline,
+                      _isChatOpen
+                          ? Icons.keyboard_arrow_down
+                          : Icons.chat_bubble_outline,
                       color: const Color(0xFF1B38E3),
                       size: 24,
                     ),
@@ -888,13 +999,218 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
     );
   }
 
+  /// Muestra el diálogo de calibración de la brújula
+  void _showCalibrationDialog(BuildContext context) {
+    final status = _sensorService.getCalibrationStatus();
+    final rotations = _sensorService.getRotationHistory();
+    
+    // Sistema 1: Calibración continua automática
+    final continuous = status['continuousCalibration'] as Map<String, dynamic>;
+    // Sistema 2: Recalibración automática (corrige si el primero está mal)
+    final autoRecalibration = status['autoRecalibration'] as Map<String, dynamic>;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.compass_calibration, color: Color(0xFF1B38E3)),
+            SizedBox(width: 8),
+            Text('Sistemas de Calibración'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ===== SISTEMA 1: CALIBRACIÓN CONTINUA AUTOMÁTICA =====
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue, width: 1),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.autorenew, color: Colors.blue, size: 20),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Sistema 1: Calibración Continua',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'SIEMPRE ACTIVA',
+                            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: continuous['progress'] as double,
+                      backgroundColor: Colors.grey[200],
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        continuous['isCalibrated'] ? Colors.green : Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Muestras: ${continuous['samplesCollected']}/${continuous['samplesNeeded']}',
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                    Text(
+                      continuous['isCalibrated'] ? '✓ Calibrada automáticamente' : 'Calibrando...',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: continuous['isCalibrated'] ? Colors.green[700] : Colors.blue[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // ===== SISTEMA 2: RECALIBRACIÓN AUTOMÁTICA (CORRIGE SI EL PRIMERO ESTÁ MAL) =====
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: autoRecalibration['isActive'] ? Colors.orange[50] : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: autoRecalibration['isActive'] ? Colors.orange : Colors.grey,
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          autoRecalibration['isActive'] ? Icons.auto_fix_high : Icons.auto_fix_high_outlined,
+                          color: autoRecalibration['isActive'] ? Colors.orange : Colors.grey,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Sistema 2: Recalibración Automática',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: autoRecalibration['isActive'] ? Colors.orange : Colors.grey,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            autoRecalibration['isActive'] ? 'ACTIVA' : 'AUTOMÁTICO',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Se activa automáticamente si el Sistema 1 tiene problemas',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                    if (autoRecalibration['isActive']) ...[
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: autoRecalibration['progress'] as double,
+                        backgroundColor: Colors.grey[200],
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Muestras: ${autoRecalibration['samplesCollected']}/${autoRecalibration['samplesNeeded']}',
+                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                      if (autoRecalibration['isComplete'])
+                        Text(
+                          '✓ Sistema 1 corregido automáticamente',
+                          style: TextStyle(fontSize: 11, color: Colors.green[700]),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Información de ubicación
+              if (status['hasLocation']) ...[
+                const Text(
+                  'Ubicación GPS',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+                const SizedBox(height: 4),
+                Text('Lat: ${status['latitude'].toStringAsFixed(6)}', style: const TextStyle(fontSize: 11)),
+                Text('Lon: ${status['longitude'].toStringAsFixed(6)}', style: const TextStyle(fontSize: 11)),
+                Text('Declinación: ${status['magneticDeclination'].toStringAsFixed(2)}°', style: const TextStyle(fontSize: 11)),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              _sensorService.recalibrate();
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Recalibración manual iniciada. Mueve el dispositivo en forma de "8"'),
+                  duration: Duration(seconds: 3),
+                  backgroundColor: Color(0xFF1B38E3),
+                ),
+              );
+            },
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Recalibrar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1B38E3),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Construye una burbuja de chat estilo WhatsApp
-  Widget _buildChatBubble(ChatMessage message, bool isLargePhone, bool isTablet) {
+  Widget _buildChatBubble(
+    ChatMessage message,
+    bool isLargePhone,
+    bool isTablet,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisAlignment:
-            message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: message.isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!message.isUser) ...[
@@ -904,10 +1220,7 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFF1B38E3),
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white,
-                  width: 2,
-                ),
+                border: Border.all(color: Colors.white, width: 2),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
@@ -916,11 +1229,7 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.smart_toy,
-                size: 18,
-                color: Colors.white,
-              ),
+              child: const Icon(Icons.smart_toy, size: 18, color: Colors.white),
             ),
             const SizedBox(width: 8),
           ],
@@ -956,17 +1265,15 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
               ),
             ),
           ),
-          if (message.isUser) ...[            const SizedBox(width: 8),
+          if (message.isUser) ...[
+            const SizedBox(width: 8),
             Container(
               width: 32,
               height: 32,
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: const Color(0xFF1B38E3),
-                  width: 2,
-                ),
+                border: Border.all(color: const Color(0xFF1B38E3), width: 2),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
@@ -986,8 +1293,36 @@ class _NavigationMapScreenState extends State<NavigationMapScreen> {
       ),
     );
   }
+
 }
 
+/// Painter para el marcador del usuario (flecha direccional)
+class _UserMarkerPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    // Dibujar una flecha apuntando hacia arriba (norte = 0°)
+    final path = Path();
+    final center = Offset(size.width / 2, size.height / 2);
+    final arrowSize = size.width * 0.4;
+
+    // Punto superior (punta de la flecha)
+    path.moveTo(center.dx, center.dy - arrowSize);
+    // Punto inferior izquierdo
+    path.lineTo(center.dx - arrowSize * 0.6, center.dy + arrowSize * 0.3);
+    // Punto inferior derecho
+    path.lineTo(center.dx + arrowSize * 0.6, center.dy + arrowSize * 0.3);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
 
 /// Modelo para mensajes del chat
 class ChatMessage {
@@ -1001,4 +1336,3 @@ class ChatMessage {
     required this.timestamp,
   });
 }
-

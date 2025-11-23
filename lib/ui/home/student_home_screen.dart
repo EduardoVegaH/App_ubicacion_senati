@@ -17,7 +17,6 @@ import '../chatbot/chatbot_screen.dart';
 import '../widgets/floating_chatbot.dart';
 import '../admin/salones_admin_screen.dart';
 
-import '../../services/sensor_service.dart';
 
 
 class LatLng {
@@ -105,7 +104,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   @override
   void initState() {
     super.initState();
-    SensorService().start();
+
     //1) Obtiene el UID del usuario logueado
     userUid = FirebaseAuth.instance.currentUser!.uid;
     // 2) Inicializar notificaciones locales (sin bloquear)
