@@ -106,6 +106,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   void initState() {
     super.initState();
     SensorService().start();
+
     //1) Obtiene el UID del usuario logueado
     userUid = FirebaseAuth.instance.currentUser!.uid;
     // 2) Inicializar notificaciones locales (sin bloquear)
