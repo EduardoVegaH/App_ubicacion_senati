@@ -41,14 +41,6 @@ import '../../features/home/domain/use_cases/schedule_notifications_use_case.dar
 import '../../features/home/domain/use_cases/update_location_use_case.dart';
 import '../../features/home/domain/use_cases/update_location_periodically_use_case.dart';
 import '../../features/home/domain/use_cases/validate_attendance_use_case.dart';
-import '../../features/navigation/data/data_sources/navigation_remote_data_source.dart';
-import '../../features/navigation/data/repositories/navigation_repository_impl.dart';
-import '../../features/navigation/domain/repositories/navigation_repository.dart';
-import '../../features/navigation/domain/use_cases/calculate_route_with_models_use_case.dart';
-import '../../features/navigation/domain/use_cases/find_entrance_node_use_case.dart';
-import '../../features/navigation/domain/use_cases/find_nearest_elevator_node_use_case.dart';
-import '../../features/navigation/domain/use_cases/find_node_use_case.dart' as navigation_find;
-import '../../features/navigation/domain/use_cases/load_graph_use_case.dart';
 
 /// Service Locator global usando GetIt
 final sl = GetIt.instance;
@@ -90,11 +82,6 @@ Future<void> init() async {
     () => NotificationDataSource(),
   );
 
-  // Navigation
-  sl.registerLazySingleton<NavigationRemoteDataSource>(
-    () => NavigationRemoteDataSource(),
-  );
-
   // ============================================
   // 🟢 REPOSITORIES
   // ============================================
@@ -125,11 +112,6 @@ Future<void> init() async {
       sl<HomeRemoteDataSource>(),
       sl<LocationDataSource>(),
     ),
-  );
-
-  // Navigation
-  sl.registerLazySingleton<NavigationRepository>(
-    () => NavigationRepositoryImpl(sl<NavigationRemoteDataSource>()),
   );
 
   // ============================================
@@ -183,11 +165,5 @@ Future<void> init() async {
   ));
   sl.registerLazySingleton(() => ValidateAttendanceUseCase(sl<GetCourseStatusUseCase>()));
 
-  // Navigation
-  sl.registerLazySingleton(() => CalculateRouteWithModelsUseCase(sl<NavigationRepository>()));
-  sl.registerLazySingleton(() => FindEntranceNodeUseCase(sl<NavigationRepository>()));
-  sl.registerLazySingleton(() => FindNearestElevatorNodeUseCase(sl<NavigationRepository>()));
-  sl.registerLazySingleton(() => navigation_find.FindNodeBySalonUseCase(sl<NavigationRepository>()));
-  sl.registerLazySingleton(() => LoadGraphUseCase(sl<NavigationRepository>()));
 }
 
