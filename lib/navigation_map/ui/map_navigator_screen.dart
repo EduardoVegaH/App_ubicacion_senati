@@ -9,7 +9,6 @@ import '../services/pathfinding_service.dart';
 import '../config/graph_edges_config.dart';
 import 'map_overlay_painter.dart';
 import 'salon_photo_popup.dart';
-import 'user_location_marker.dart';
 
 /// Pantalla de navegación que muestra el mapa SVG con la ruta trazada
 class MapNavigatorScreen extends StatefulWidget {
@@ -59,9 +58,6 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
   // Cache del SVG procesado para evitar reprocesarlo en cada build
   String? _cachedProcessedSvg;
   String? _cachedSvgPath;
-  
-  // Servicio de sensores para tracking del usuario
-  SensorService? _sensorService;
 
   @override
   void initState() {
@@ -74,15 +70,6 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
       duration: const Duration(milliseconds: 300),
     );
     
-    // Inicializar servicio de sensores para el marcador del usuario
-    _sensorService = SensorService();
-    _sensorService!.onDataChanged = () {
-      if (mounted) {
-        setState(() {}); // Actualizar UI cuando cambie el heading, posX o posY
-      }
-    };
-    _sensorService!.start();
-    
     _loadMapAndCalculateRoute();
   }
 
@@ -91,7 +78,6 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
     _transformationController.removeListener(_onTransformChanged);
     _transformationController.dispose();
     _photoAnimationController.dispose();
-    _sensorService?.stop();
     super.dispose();
   }
 
@@ -697,23 +683,6 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
                         ),
                       ),
 
-                    // --- MARCADOR DEL USUARIO (ESTILO GOOGLE MAPS) ---
-                    if (_entranceNode != null && _sensorService != null)
-                      AnimatedBuilder(
-                        animation: _transformationController,
-                        builder: (context, child) {
-                          return LayoutBuilder(
-                            builder: (context, constraints) {
-                              return UserLocationWidget(
-                                entranceNode: _entranceNode,
-                                sensorService: _sensorService!,
-                                transformationController: _transformationController,
-                                screenSize: constraints.biggest,
-                              );
-                            },
-                          );
-                        },
-                      ),
 
                     // Componente separado para el pop-up de la foto (fuera del Stack del mapa)
                     if (_showPhoto)
