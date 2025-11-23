@@ -9,6 +9,7 @@ class GraphEdgesConfig {
   /// Edges manuales para el piso 2
   /// Define las conexiones exactas que deben existir entre nodos
   /// Extrae los segmentos físicos del SVG para cada edge
+  /// OPTIMIZACIÓN: svgPath puede ser null para evitar cargar el SVG en tiempo de carga
   static Future<List<Edge>> getPiso2EdgesManual(
     List<MapNode> nodes, {
     String? svgPath,
@@ -16,7 +17,8 @@ class GraphEdgesConfig {
     // Crear mapa de nodos por ID para calcular pesos
     final nodeMap = {for (var node in nodes) node.id: node};
     
-    // Cargar ruta física del SVG si está disponible
+    // OPTIMIZACIÓN: Solo cargar ruta física del SVG si se proporciona explícitamente
+    // En tiempo de carga normal, no cargar el SVG para evitar latencia
     List<Offset> routePoints = [];
     if (svgPath != null) {
       try {
@@ -27,6 +29,9 @@ class GraphEdgesConfig {
       } catch (e) {
         print('⚠️ No se pudo cargar la ruta física para shapes: $e');
       }
+    } else {
+      // Si no hay SVG path, usar solo los dos puntos del edge (fallback rápido)
+      print('📋 Generando edges sin shapes del SVG (modo rápido)');
     }
     
     // Lista de conexiones manuales (fromId, toId)

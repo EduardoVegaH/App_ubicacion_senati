@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'dart:math' as math;
 import '../models/map_node.dart';
 import '../models/edge.dart';
 import '../repos/graph_repository.dart';
@@ -8,6 +9,7 @@ import '../services/pathfinding_service.dart';
 import '../config/graph_edges_config.dart';
 import 'map_overlay_painter.dart';
 import 'salon_photo_popup.dart';
+import 'user_location_marker.dart';
 
 /// Pantalla de navegación que muestra el mapa SVG con la ruta trazada
 class MapNavigatorScreen extends StatefulWidget {
@@ -53,6 +55,13 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
   
   // Controlador de animación para la foto
   late AnimationController _photoAnimationController;
+  
+  // Cache del SVG procesado para evitar reprocesarlo en cada build
+  String? _cachedProcessedSvg;
+  String? _cachedSvgPath;
+  
+  // Servicio de sensores para tracking del usuario
+  SensorService? _sensorService;
 
   @override
   void initState() {
@@ -65,6 +74,15 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
       duration: const Duration(milliseconds: 300),
     );
     
+    // Inicializar servicio de sensores para el marcador del usuario
+    _sensorService = SensorService();
+    _sensorService!.onDataChanged = () {
+      if (mounted) {
+        setState(() {}); // Actualizar UI cuando cambie el heading, posX o posY
+      }
+    };
+    _sensorService!.start();
+    
     _loadMapAndCalculateRoute();
   }
 
@@ -73,6 +91,7 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
     _transformationController.removeListener(_onTransformChanged);
     _transformationController.dispose();
     _photoAnimationController.dispose();
+    _sensorService?.stop();
     super.dispose();
   }
 
@@ -183,12 +202,14 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
       }
 
       // 2. Buscar nodo más cercano a los ascensores (punto de inicio)
+      // OPTIMIZACIÓN: Pasar los nodos ya cargados para evitar otra consulta a Firestore
       print('🔍 Buscando nodo más cercano a los ascensores...');
-      _entranceNode = await _graphRepository.findNearestElevatorNode(pisoACargar);
+      _entranceNode = await _graphRepository.findNearestElevatorNode(pisoACargar, nodes: _allNodes);
       if (_entranceNode == null) {
         // Si no se encuentra, intentar con la entrada principal
+        // OPTIMIZACIÓN: Pasar los nodos ya cargados
         print('⚠️ No se encontró nodo cercano a ascensores, usando entrada principal');
-        _entranceNode = await _graphRepository.findEntranceNode(pisoACargar);
+        _entranceNode = await _graphRepository.findEntranceNode(pisoACargar, nodes: _allNodes);
         if (_entranceNode == null) {
           // Si aún no hay, usar el primer nodo
           _entranceNode = _allNodes.first;
@@ -197,10 +218,12 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
       print('✅ Nodo de inicio seleccionado: ${_entranceNode!.id}');
 
       // 3. Buscar nodo destino (asociado al salón)
+      // OPTIMIZACIÓN: Pasar los nodos ya cargados para evitar otra consulta a Firestore
       print('🔍 Buscando nodo para salón: ${widget.objetivoSalonId} en piso $pisoACargar');
       _destinationNode = await _graphRepository.findNodeBySalon(
         piso: pisoACargar,
         salonId: widget.objetivoSalonId,
+        nodes: _allNodes, // Pasar nodos ya cargados
       );
 
       if (_destinationNode == null) {
@@ -417,7 +440,13 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
   /// Oculta los nodos azules del SVG procesando el string
   /// Los nodos siguen existiendo en el SVG pero no son visibles
   /// Esto permite que el sistema de navegación funcione sin mostrar los nodos al usuario
-  String _hideNodesInSvg(String svgString) {
+  /// OPTIMIZACIÓN: Cachea el resultado para evitar reprocesar
+  String _hideNodesInSvg(String svgString, String svgPath) {
+    // Si ya tenemos el SVG procesado en cache para esta ruta, retornarlo
+    if (_cachedProcessedSvg != null && _cachedSvgPath == svgPath) {
+      return _cachedProcessedSvg!;
+    }
+    
     // Patrón para encontrar círculos con id que empieza con "node" y fill="#0066FF"
     // Ejemplo: <circle id="node37" cx="1063" cy="697" r="10" fill="#0066FF"/>
     final nodePattern = RegExp(
@@ -448,6 +477,10 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
       },
     );
     
+    // Guardar en cache
+    _cachedProcessedSvg = modifiedSvg;
+    _cachedSvgPath = svgPath;
+    
     return modifiedSvg;
   }
 
@@ -462,6 +495,65 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
         // Fallback al piso 2
         return 'assets/mapas/map_int_piso2 (1).svg';
     }
+  }
+
+  /// Transforma coordenadas del SVG a coordenadas de pantalla
+  /// Similar al método en MapOverlayPainter pero para uso en widgets
+  Offset _transformSvgToScreen(double svgX, double svgY, Size screenSize) {
+    const double svgWidth = 2117.0;
+    const double svgHeight = 1729.0;
+    
+    // Calcular escala para mantener aspect ratio (BoxFit.contain)
+    final scaleX = screenSize.width / svgWidth;
+    final scaleY = screenSize.height / svgHeight;
+    final scale = scaleX < scaleY ? scaleX : scaleY;
+    
+    // Calcular offset para centrar
+    final scaledWidth = svgWidth * scale;
+    final scaledHeight = svgHeight * scale;
+    final offsetX = (screenSize.width - scaledWidth) / 2;
+    final offsetY = (screenSize.height - scaledHeight) / 2;
+    
+    // Transformar coordenadas
+    return Offset(
+      offsetX + svgX * scale,
+      offsetY + svgY * scale,
+    );
+  }
+  
+  /// Calcula las coordenadas del punto de partida (entranceNode) transformadas
+  /// ⚠️ COORDENADAS DEL PUNTO DE PARTIDA - NO SERÁN PERMANENTES
+  /// Estas coordenadas se calculan desde el entranceNode y se transforman
+  /// según la transformación actual del InteractiveViewer
+  /// Usa exactamente la misma transformación que el overlay para garantizar alineación perfecta
+  Offset? _getStartPointCoordinates(Size screenSize) {
+    if (_entranceNode == null) return null;
+    
+    // Transformar coordenadas SVG a coordenadas de pantalla base
+    // Usar exactamente el mismo método que MapOverlayPainter._transformPoint
+    final basePoint = _transformSvgToScreen(
+      _entranceNode!.x,
+      _entranceNode!.y,
+      screenSize,
+    );
+    
+    // Aplicar transformación del InteractiveViewer (zoom y pan)
+    // Transformar el punto usando la matriz de transformación 2D
+    // Para transformaciones 2D: [x', y'] = [x, y, 1] * matriz
+    final matrix = _transformationController.value;
+    final x = basePoint.dx;
+    final y = basePoint.dy;
+    
+    // Multiplicar punto por matriz: punto * matriz = [x, y, 1] * matriz
+    // Para una transformación 2D, usamos solo los componentes x, y y w (traslación)
+    final transformedX = matrix.getRow(0).x * x + 
+                        matrix.getRow(0).y * y + 
+                        matrix.getRow(0).w; // w contiene la traslación X
+    final transformedY = matrix.getRow(1).x * x + 
+                        matrix.getRow(1).y * y + 
+                        matrix.getRow(1).w; // w contiene la traslación Y
+    
+    return Offset(transformedX, transformedY);
   }
 
   @override
@@ -559,7 +651,9 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
                             }
                             if (snapshot.hasData) {
                               // Ocultar los nodos azules procesando el SVG
-                              final svgWithoutNodes = _hideNodesInSvg(snapshot.data!);
+                              // OPTIMIZACIÓN: Cachea el resultado para evitar reprocesar
+                              final svgPath = _getSvgPath();
+                              final svgWithoutNodes = _hideNodesInSvg(snapshot.data!, svgPath);
                               return SvgPicture.string(
                                 svgWithoutNodes,
                                 fit: BoxFit.contain,
@@ -601,6 +695,24 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
                             );
                           },
                         ),
+                      ),
+
+                    // --- MARCADOR DEL USUARIO (ESTILO GOOGLE MAPS) ---
+                    if (_entranceNode != null && _sensorService != null)
+                      AnimatedBuilder(
+                        animation: _transformationController,
+                        builder: (context, child) {
+                          return LayoutBuilder(
+                            builder: (context, constraints) {
+                              return UserLocationWidget(
+                                entranceNode: _entranceNode,
+                                sensorService: _sensorService!,
+                                transformationController: _transformationController,
+                                screenSize: constraints.biggest,
+                              );
+                            },
+                          );
+                        },
                       ),
 
                     // Componente separado para el pop-up de la foto (fuera del Stack del mapa)

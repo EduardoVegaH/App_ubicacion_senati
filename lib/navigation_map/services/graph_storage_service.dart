@@ -101,6 +101,7 @@ class GraphStorageService {
   /// Carga nodos y edges de un piso
   /// Para piso 2, SOLO usa edges manuales (ignora cualquier edge adicional en Firestore)
   /// Si no hay edges en Firestore, los inicializa automáticamente
+  /// OPTIMIZACIÓN: Evita verificaciones innecesarias en tiempo de carga
   Future<Map<String, dynamic>> loadGraph(int piso) async {
     final nodes = await loadNodes(piso);
     var edges = await loadEdges(piso);
@@ -108,25 +109,21 @@ class GraphStorageService {
     // Para piso 2, SIEMPRE usar solo edges manuales (ignorar edges adicionales en Firestore)
     if (piso == 2) {
       print('📋 Piso 2: Forzando uso de edges MANUALES únicamente');
-      // Nota: Para piso 2, necesitamos el SVG path para extraer shapes
-      // Si no lo tenemos aquí, los edges se generarán sin shapes
-      // Los shapes se agregarán cuando se reinicialice el grafo completo
-      final manualEdges = await GraphEdgesConfig.getManualEdgesForFloor(piso, nodes);
+      // OPTIMIZACIÓN: No cargar SVG aquí para evitar latencia - los edges ya tienen shapes si fueron inicializados
+      // Solo cargar SVG si realmente es necesario (cuando se inicializa el grafo, no en cada carga)
+      final manualEdges = await GraphEdgesConfig.getManualEdgesForFloor(piso, nodes, svgPath: null);
       
       if (manualEdges.isNotEmpty) {
-        // Verificar si los edges en Firestore coinciden con los manuales
-        final manualEdgeIds = manualEdges.map((e) => '${e.fromId}_${e.toId}').toSet();
-        final firestoreEdgeIds = edges.map((e) => '${e.fromId}_${e.toId}').toSet();
-        
-        if (manualEdgeIds != firestoreEdgeIds) {
-          print('⚠️ Edges en Firestore no coinciden con edges manuales. Actualizando Firestore...');
-          // Limpiar edges antiguos y guardar solo los manuales
-          await clearEdges(piso);
+        // OPTIMIZACIÓN: Solo verificar si hay edges en Firestore, no comparar todos los IDs
+        // Si hay edges en Firestore, asumimos que están correctos (la verificación completa se hace en inicialización)
+        if (edges.isEmpty || edges.length != manualEdges.length) {
+          // Si no hay edges o el número no coincide, usar los manuales directamente
+          // No actualizar Firestore aquí para evitar latencia - se actualiza en inicialización
           edges = manualEdges;
-          await saveEdges(piso: piso, edges: edges);
-          print('✅ Firestore actualizado con edges manuales únicamente');
+          print('✅ Usando edges manuales (${edges.length} edges) - Firestore se actualizará en inicialización');
         } else {
-          edges = manualEdges; // Usar los manuales aunque coincidan (asegurar consistencia)
+          // Si hay edges y el número coincide, usar los manuales para asegurar consistencia
+          edges = manualEdges;
           print('✅ Usando edges manuales (${edges.length} edges)');
         }
       } else {
@@ -139,8 +136,11 @@ class GraphStorageService {
         final manualEdges = await GraphEdgesConfig.getManualEdgesForFloor(piso, nodes);
         if (manualEdges.isNotEmpty) {
           edges = manualEdges;
-          await saveEdges(piso: piso, edges: edges);
-          print('✅ Edges inicializados y guardados en Firestore para piso $piso');
+          // OPTIMIZACIÓN: Guardar en background para no bloquear la carga
+          saveEdges(piso: piso, edges: edges).catchError((e) {
+            print('⚠️ Error al guardar edges en background: $e');
+          });
+          print('✅ Edges inicializados para piso $piso (guardando en background)');
         } else {
           print('⚠️ No hay edges manuales definidos para piso $piso');
         }
@@ -232,19 +232,25 @@ class GraphStorageService {
   }
 
   /// Busca el nodo de entrada principal de un piso
-  Future<MapNode?> findEntranceNode(int piso) async {
+  /// OPTIMIZACIÓN: Acepta nodos ya cargados para evitar consulta adicional
+  Future<MapNode?> findEntranceNode(int piso, {List<MapNode>? nodes}) async {
     try {
-      final nodes = await loadNodes(piso);
+      final nodeList = nodes ?? await loadNodes(piso);
+      if (nodeList.isEmpty) return null;
       
       // Buscar nodo con tipo "entrada" o ID que contenga "entrada", "inicio", "punto-inicial"
-      return nodes.firstWhere(
-        (node) =>
-            node.tipo == 'entrada' ||
-            node.id.toLowerCase().contains('entrada') ||
-            node.id.toLowerCase().contains('inicio') ||
-            node.id.toLowerCase().contains('punto-inicial'),
-        orElse: () => nodes.first, // Si no hay entrada, usar el primer nodo
-      );
+      try {
+        return nodeList.firstWhere(
+          (node) =>
+              node.tipo == 'entrada' ||
+              node.id.toLowerCase().contains('entrada') ||
+              node.id.toLowerCase().contains('inicio') ||
+              node.id.toLowerCase().contains('punto-inicial'),
+        );
+      } catch (e) {
+        // Si no hay entrada, usar el primer nodo
+        return nodeList.first;
+      }
     } catch (e) {
       print('❌ Error al buscar nodo de entrada en piso $piso: $e');
       return null;

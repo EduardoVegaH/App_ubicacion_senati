@@ -36,16 +36,20 @@ class GraphRepository {
   }
 
   /// Busca el nodo de entrada principal de un piso
-  Future<MapNode?> findEntranceNode(int piso) async {
-    return await _storageService.findEntranceNode(piso);
+  /// OPTIMIZACIÓN: Acepta nodos ya cargados para evitar consulta adicional
+  Future<MapNode?> findEntranceNode(int piso, {List<MapNode>? nodes}) async {
+    return await _storageService.findEntranceNode(piso, nodes: nodes);
   }
 
   /// Busca el nodo más cercano a los ascensores
   /// Retorna el nodo más cercano a cualquiera de los ascensores del piso
-  Future<MapNode?> findNearestElevatorNode(int piso) async {
+  /// 
+  /// [nodes] - Lista de nodos ya cargados (opcional, si no se proporciona se cargan)
+  Future<MapNode?> findNearestElevatorNode(int piso, {List<MapNode>? nodes}) async {
     try {
-      final nodes = await _storageService.loadNodes(piso);
-      if (nodes.isEmpty) return null;
+      // Si no se proporcionan nodos, cargarlos
+      final nodeList = nodes ?? await _storageService.loadNodes(piso);
+      if (nodeList.isEmpty) return null;
       
       // Coordenadas aproximadas de los ascensores en el piso 2
       // Basadas en el SVG: Asensor01-06
@@ -62,7 +66,7 @@ class GraphRepository {
       double minDistance = double.infinity;
       
       // Buscar el nodo más cercano a cualquiera de los ascensores
-      for (final node in nodes) {
+      for (final node in nodeList) {
         for (final elevator in elevatorPositions) {
           final dx = node.x - elevator['x']!;
           final dy = node.y - elevator['y']!;
@@ -98,38 +102,51 @@ class GraphRepository {
   /// 3. Usar fallback del mapeo
   /// 4. Buscar por número del salón en los IDs de nodos
   /// 5. Si no encuentra, usar el mapper inteligente
+  /// 
+  /// [nodes] - Lista de nodos ya cargados (opcional, si no se proporciona se cargan)
   Future<MapNode?> findNodeBySalon({
     required int piso,
     required String salonId, // ej: "salon-A-604" o "A-604"
+    List<MapNode>? nodes,
   }) async {
     print('🔍 [findNodeBySalon] Buscando nodo para: $salonId en piso $piso');
-    final nodes = await _storageService.loadNodes(piso);
-    if (nodes.isEmpty) {
+    
+    // Si no se proporcionan nodos, cargarlos
+    final nodeList = nodes ?? await _storageService.loadNodes(piso);
+    if (nodeList.isEmpty) {
       print('❌ No hay nodos cargados para el piso $piso');
       return null;
     }
-    print('📊 Total de nodos disponibles: ${nodes.length}');
+    print('📊 Total de nodos disponibles: ${nodeList.length}');
+    
+    // Crear mapas para búsquedas O(1) en lugar de O(n)
+    final nodeMapById = {for (var node in nodeList) node.id: node};
+    final nodeMapBySalonId = <String, MapNode>{};
+    for (var node in nodeList) {
+      if (node.salonId != null) {
+        nodeMapBySalonId[node.salonId!] = node;
+        // También indexar sin el prefijo "salon-"
+        if (node.salonId!.startsWith('salon-')) {
+          nodeMapBySalonId[node.salonId!.substring(6)] = node;
+        }
+      }
+    }
     
     // 0. Buscar nodo especial de salón primero (formato: node-salon-{TORRE}-{NUMERO})
     // Estos nodos están directamente en las puertas de los salones
     final salonNodeId = 'node-$salonId';
-    try {
-      final salonNode = nodes.firstWhere((n) => n.id == salonNodeId);
+    final salonNode = nodeMapById[salonNodeId];
+    if (salonNode != null) {
       print('✅ Nodo especial de salón encontrado: $salonId -> $salonNodeId');
       return salonNode;
-    } catch (e) {
-      // No hay nodo especial, continuar con otras estrategias
     }
     
     // 0.5. Buscar nodos que tengan el salonId en su campo salonId
-    try {
-      final nodeWithSalonId = nodes.firstWhere(
-        (n) => n.salonId == salonId || n.salonId == salonId.replaceFirst('salon-', ''),
-      );
+    final normalizedSalonId = salonId.replaceFirst('salon-', '');
+    final nodeWithSalonId = nodeMapBySalonId[salonId] ?? nodeMapBySalonId[normalizedSalonId];
+    if (nodeWithSalonId != null) {
       print('✅ Nodo encontrado por salonId en campo: $salonId -> ${nodeWithSalonId.id}');
       return nodeWithSalonId;
-    } catch (e) {
-      // Continuar con otras estrategias
     }
     
     // 1. Buscar en mapeo manual (más confiable)
@@ -141,29 +158,24 @@ class GraphRepository {
     
     if (mappedNodeId != null) {
       print('✅ Mapeo manual encontrado: $salonId -> $mappedNodeId');
-      try {
-        final node = nodes.firstWhere((n) => n.id == mappedNodeId);
+      final mappedNode = nodeMapById[mappedNodeId];
+      if (mappedNode != null) {
         print('✅ Nodo encontrado por mapeo manual: $salonId -> $mappedNodeId');
-        return node;
-      } catch (e) {
-        print('⚠️ Nodo $mappedNodeId del mapeo no existe en los nodos cargados: $e');
-        print('📋 IDs de nodos disponibles: ${nodes.map((n) => n.id).take(10).join(", ")}...');
+        return mappedNode;
+      } else {
+        print('⚠️ Nodo $mappedNodeId del mapeo no existe en los nodos cargados');
+        print('📋 IDs de nodos disponibles: ${nodeList.map((n) => n.id).take(10).join(", ")}...');
       }
     } else {
       print('⚠️ No se encontró mapeo manual para: $salonId');
     }
     
-    // 2. Buscar por salonId exacto en los nodos
+    // 2. Buscar por salonId exacto en los nodos (ya lo intentamos arriba, pero por si acaso)
     print('🔍 Buscando por salonId exacto en nodos...');
-    try {
-      final node = nodes.firstWhere(
-        (n) => n.salonId == salonId || n.salonId == salonId.replaceFirst('salon-', ''),
-      );
-      print('✅ Nodo encontrado por salonId exacto: ${node.id}');
-      return node;
-    } catch (e) {
-      print('⚠️ No se encontró por salonId exacto: $e');
-      // Continuar con otras estrategias
+    final exactMatch = nodeMapBySalonId[salonId] ?? nodeMapBySalonId[normalizedSalonId];
+    if (exactMatch != null) {
+      print('✅ Nodo encontrado por salonId exacto: ${exactMatch.id}');
+      return exactMatch;
     }
     
     // 3. Usar fallback del mapeo
@@ -175,12 +187,12 @@ class GraphRepository {
     
     if (fallbackNodeId != null) {
       print('✅ Fallback encontrado: $salonId -> $fallbackNodeId');
-      try {
-        final node = nodes.firstWhere((n) => n.id == fallbackNodeId);
+      final fallbackNode = nodeMapById[fallbackNodeId];
+      if (fallbackNode != null) {
         print('✅ Nodo encontrado por fallback: $salonId -> $fallbackNodeId');
-        return node;
-      } catch (e) {
-        print('⚠️ Nodo $fallbackNodeId del fallback no existe: $e');
+        return fallbackNode;
+      } else {
+        print('⚠️ Nodo $fallbackNodeId del fallback no existe');
       }
     } else {
       print('⚠️ No se encontró fallback para: $salonId');
@@ -192,7 +204,7 @@ class GraphRepository {
     
     if (salonNumber.isNotEmpty) {
       // Buscar nodos que contengan el número
-      final matchingNodes = nodes.where(
+      final matchingNodes = nodeList.where(
         (n) => n.id.contains(salonNumber) || 
                (n.salonId != null && n.salonId!.contains(salonNumber)),
       ).toList();
@@ -209,7 +221,7 @@ class GraphRepository {
     print('⚠️ No se encontró nodo específico para $salonId, usando mapper inteligente');
     final intelligentNode = SalonNodeMapper.findNodeForSalon(
       salonId: salonId,
-      nodes: nodes,
+      nodes: nodeList,
     );
     if (intelligentNode != null) {
       print('✅ Nodo encontrado por mapper inteligente: ${intelligentNode.id}');
