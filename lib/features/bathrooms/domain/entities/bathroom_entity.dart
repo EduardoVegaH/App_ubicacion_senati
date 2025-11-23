@@ -32,3 +32,4 @@ enum BathroomStatus {
   inoperativo,
 }
 
+
