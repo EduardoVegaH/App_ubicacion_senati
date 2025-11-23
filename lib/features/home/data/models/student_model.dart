@@ -38,7 +38,8 @@ class StudentModel extends StudentEntity {
       id: data['IdEstudiante'] ?? '',
       semester: data['Semestre'] ?? '',
       photoUrl: data['foto'] ?? '',
-      zonalAddress: data['DireccionZonal'] ?? '',
+      // Intentar ambos nombres de campo para compatibilidad
+      zonalAddress: data['Campus'] ?? data['DireccionZonal'] ?? '',
       school: data['Escuela'] ?? '',
       career: data['Carrera'] ?? '',
       institutionalEmail: data['CorreoInstud'] ?? '',

@@ -9,6 +9,7 @@ import '../../domain/index.dart';
 import '../widgets/student_info_header.dart';
 import '../widgets/course_card.dart';
 import '../widgets/home_drawer.dart';
+import '../widgets/academic_status_block.dart';
 
 /// Página principal de home (completamente refactorizada con Clean Architecture)
 class HomePage extends StatefulWidget {
@@ -80,8 +81,16 @@ class _HomePageState extends State<HomePage> {
     try {
       final student = await _getStudentDataUseCase.call();
       if (student != null) {
+        // Si no hay cursos desde Firebase, usar cursos de ejemplo (como en el código antiguo)
+        List<CourseEntity> coursesToUse = student.coursesToday;
+        
+        if (coursesToUse.isEmpty) {
+          print('⚠️ No hay cursos en Firebase, usando cursos de ejemplo');
+          coursesToUse = _getExampleCourses();
+        }
+        
         // Generar historial para cada curso si no existe
-        final coursesWithHistory = student.coursesToday.map((course) {
+        final coursesWithHistory = coursesToUse.map((course) {
           if (course.history == null) {
             final history = _generateCourseHistoryUseCase.call(
               courseName: course.name,
@@ -134,6 +143,51 @@ class _HomePageState extends State<HomePage> {
         _loading = false;
       });
     }
+  }
+
+  /// Cursos de ejemplo (del código antiguo) para usar cuando no hay cursos en Firebase
+  List<CourseEntity> _getExampleCourses() {
+    return [
+      CourseEntity(
+        name: 'SEMINARIO COMPLEMENT PRÁCTI',
+        type: 'Seminario',
+        startTime: '7:00 AM',
+        endTime: '10:00 AM',
+        duration: '7:00 AM - 10:00 AM',
+        teacher: 'MANSILLA NEYRA, JUAN RAMON',
+        locationCode: 'IND - TORRE B 60TB - 200',
+        locationDetail: 'Torre B, Piso 2, Salón 200',
+        classroomLatitude: -11.997200,
+        classroomLongitude: -77.061500,
+        classroomRadius: 10.0,
+      ),
+      CourseEntity(
+        name: 'DESARROLLO HUMANO',
+        type: 'Clase',
+        startTime: '3:40 PM',
+        endTime: '5:00 PM',
+        duration: '3:40 PM - 5:00 PM',
+        teacher: 'GONZALES LEON, JACQUELINE CORAL',
+        locationCode: 'IND - TORRE C 60TC - 604',
+        locationDetail: 'Torre C, Piso 6, Salón 604',
+        classroomLatitude: -11.997300,
+        classroomLongitude: -77.061600,
+        classroomRadius: 10.0,
+      ),
+      CourseEntity(
+        name: 'REDES DE COMPUTADORAS',
+        type: 'Tecnológico',
+        startTime: '7:00 AM',
+        endTime: '9:15 AM',
+        duration: '7:00 AM - 9:15 AM',
+        teacher: 'MANSILLA NEYRA, JUAN RAMON',
+        locationCode: 'IND - TORRE A 60TA - 604',
+        locationDetail: 'Torre A, Piso 6, Salón 604',
+        classroomLatitude: -11.997100,
+        classroomLongitude: -77.061400,
+        classroomRadius: 10.0,
+      ),
+    ];
   }
 
   Future<void> _scheduleNotifications(List<CourseEntity> courses) async {
@@ -288,39 +342,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Widget _buildInfoRow(
-    String label,
-    String value,
-    bool isLargePhone,
-    bool isTablet,
-  ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 2,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
-              color: AppStyles.textSecondary,
-            ),
-          ),
-        ),
-        Expanded(
-          flex: 3,
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
-              fontWeight: FontWeight.w500,
-              color: AppStyles.textPrimary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   String _getCurrentDate() {
     final now = DateTime.now();
@@ -394,11 +415,16 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               children: [
                 // Header con información del estudiante
-                StudentInfoHeader(
-                  student: _student!,
-                  campusStatus: _campusStatus,
-                  isLargePhone: isLargePhone,
-                  isTablet: isTablet,
+                Builder(
+                  builder: (context) => StudentInfoHeader(
+                    student: _student!,
+                    campusStatus: _campusStatus,
+                    isLargePhone: isLargePhone,
+                    isTablet: isTablet,
+                    onMenuTap: () {
+                      Scaffold.of(context).openDrawer();
+                    },
+                  ),
                 ),
                 // Contenido scrollable
                 Expanded(
@@ -418,82 +444,7 @@ class _HomePageState extends State<HomePage> {
                             padding: EdgeInsets.only(
                               bottom: isLargePhone ? 24 : (isTablet ? 28 : 20),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Título con icono
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.school,
-                                      color: AppStyles.primaryColor,
-                                      size: isLargePhone
-                                          ? 26
-                                          : (isTablet ? 28 : 24),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Información Académica',
-                                      style: TextStyle(
-                                        fontSize: isLargePhone
-                                            ? 20
-                                            : (isTablet ? 22 : 18),
-                                        fontWeight: FontWeight.bold,
-                                        color: AppStyles.textPrimary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(
-                                  height: isLargePhone
-                                      ? 22
-                                      : (isTablet ? 24 : 20),
-                                ),
-                                // Dirección Zonal
-                                _buildInfoRow(
-                                  'Dirección Zonal',
-                                  _student!.zonalAddress,
-                                  isLargePhone,
-                                  isTablet,
-                                ),
-                                SizedBox(
-                                  height: isLargePhone
-                                      ? 18
-                                      : (isTablet ? 20 : 16),
-                                ),
-                                // Escuela
-                                _buildInfoRow(
-                                  'Escuela',
-                                  _student!.school,
-                                  isLargePhone,
-                                  isTablet,
-                                ),
-                                SizedBox(
-                                  height: isLargePhone
-                                      ? 18
-                                      : (isTablet ? 20 : 16),
-                                ),
-                                // Carrera
-                                _buildInfoRow(
-                                  'Carrera',
-                                  _student!.career,
-                                  isLargePhone,
-                                  isTablet,
-                                ),
-                                SizedBox(
-                                  height: isLargePhone
-                                      ? 18
-                                      : (isTablet ? 20 : 16),
-                                ),
-                                // Correo Institucional
-                                _buildInfoRow(
-                                  'Correo Institucional',
-                                  _student!.institutionalEmail,
-                                  isLargePhone,
-                                  isTablet,
-                                ),
-                              ],
-                            ),
+                            child: AcademicStatusBlock(student: _student!),
                           ),
                           // Divider
                           Divider(
@@ -549,28 +500,49 @@ class _HomePageState extends State<HomePage> {
                                     : (isTablet ? 24 : 20),
                               ),
                               // Lista de cursos ordenados por horario
-                              ...sortedCourses.asMap().entries.map((entry) {
-                                final index = entry.key;
-                                final course = entry.value;
-                                final statusInfo = _getCourseStatusUseCase.call(course);
-                                final attendanceStatus = _courseAttendanceStatus[course.name];
-                                
-                                return Padding(
-                                  padding: EdgeInsets.only(
-                                    bottom: isLargePhone
-                                        ? 18
-                                        : (isTablet ? 20 : 16),
+                              if (sortedCourses.isEmpty)
+                                Padding(
+                                  padding: EdgeInsets.all(isLargePhone ? 24 : (isTablet ? 28 : 20)),
+                                  child: Center(
+                                    child: Column(
+                                      children: [
+                                        Icon(
+                                          Icons.school_outlined,
+                                          size: 64,
+                                          color: Colors.grey[400],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'No hay cursos programados para hoy',
+                                          style: TextStyle(
+                                            fontSize: isLargePhone ? 16 : (isTablet ? 18 : 14),
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  child: CourseCard(
-                                    course: course,
-                                    index: index,
-                                    statusInfo: statusInfo,
-                                    attendanceStatus: attendanceStatus,
-                                    isLargePhone: isLargePhone,
-                                    isTablet: isTablet,
-                                  ),
-                                );
-                              }),
+                                )
+                              else
+                                ...sortedCourses.asMap().entries.map((entry) {
+                                  final index = entry.key;
+                                  final course = entry.value;
+                                  final attendanceStatus = _courseAttendanceStatus[course.name];
+                                  
+                                  return Padding(
+                                    padding: EdgeInsets.only(
+                                      bottom: isLargePhone
+                                          ? 18
+                                          : (isTablet ? 20 : 16),
+                                    ),
+                                    child: CourseCard(
+                                      course: course,
+                                      index: index,
+                                      attendanceStatus: attendanceStatus,
+                                      getCourseStatusUseCase: _getCourseStatusUseCase,
+                                    ),
+                                  );
+                                }),
                               // Información adicional
                               Padding(
                                 padding: EdgeInsets.only(

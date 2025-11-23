@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../../../app/styles/app_styles.dart';
 import '../../domain/entities/student_entity.dart';
 
-/// Widget para el header con información del estudiante
+/// Widget de encabezado con información del estudiante
 class StudentInfoHeader extends StatelessWidget {
   final StudentEntity student;
-  final String campusStatus;
+  final String campusStatus; // "Dentro del campus" o "Fuera del campus"
+  final VoidCallback? onMenuTap;
   final bool isLargePhone;
   final bool isTablet;
 
@@ -13,24 +13,27 @@ class StudentInfoHeader extends StatelessWidget {
     super.key,
     required this.student,
     required this.campusStatus,
+    this.onMenuTap,
     required this.isLargePhone,
     required this.isTablet,
   });
 
   @override
   Widget build(BuildContext context) {
+    final padding = isLargePhone ? 20.0 : (isTablet ? 24.0 : 16.0);
+
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
-        color: AppStyles.primaryColor,
+        color: Color(0xFF1B38E3),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(0),
           bottomRight: Radius.circular(0),
         ),
       ),
       padding: EdgeInsets.only(
-        left: isLargePhone ? 20 : (isTablet ? 24 : 16),
-        right: isLargePhone ? 20 : (isTablet ? 24 : 16),
+        left: padding,
+        right: padding,
         top: isLargePhone ? 24 : (isTablet ? 28 : 20),
         bottom: 20,
       ),
@@ -58,10 +61,8 @@ class StudentInfoHeader extends StatelessWidget {
                 child: student.photoUrl.isEmpty
                     ? Icon(
                         Icons.person,
-                        size: isLargePhone
-                            ? 42
-                            : (isTablet ? 45 : 40),
-                        color: AppStyles.textSecondary,
+                        size: isLargePhone ? 42 : (isTablet ? 45 : 40),
+                        color: const Color(0xFF757575),
                       )
                     : null,
               ),
@@ -81,9 +82,7 @@ class StudentInfoHeader extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    campusStatus == "Dentro del campus"
-                        ? "Presente"
-                        : "Ausente",
+                    campusStatus == "Dentro del campus" ? "Presente" : "Ausente",
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -106,12 +105,10 @@ class StudentInfoHeader extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        student.name,
+                        student.name.toUpperCase(),
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: isLargePhone
-                              ? 17
-                              : (isTablet ? 18 : 16),
+                          fontSize: isLargePhone ? 17 : (isTablet ? 18 : 16),
                           fontWeight: FontWeight.bold,
                           height: 1.2,
                         ),
@@ -122,12 +119,10 @@ class StudentInfoHeader extends StatelessWidget {
                     SizedBox(
                       width: isLargePhone ? 8 : (isTablet ? 10 : 6),
                     ),
-                    // Icono de menú (a la derecha, a la altura del nombre)
-                    Builder(
-                      builder: (context) => GestureDetector(
-                        onTap: () {
-                          Scaffold.of(context).openDrawer();
-                        },
+                    // Icono de menú
+                    if (onMenuTap != null)
+                      GestureDetector(
+                        onTap: onMenuTap,
                         child: Transform.translate(
                           offset: const Offset(0, -2),
                           child: const Icon(
@@ -137,7 +132,6 @@ class StudentInfoHeader extends StatelessWidget {
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
                 SizedBox(
@@ -147,9 +141,7 @@ class StudentInfoHeader extends StatelessWidget {
                   'ID: ${student.id}',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: isLargePhone
-                        ? 14
-                        : (isTablet ? 15 : 13),
+                    fontSize: isLargePhone ? 14 : (isTablet ? 15 : 13),
                     height: 1.2,
                   ),
                 ),
@@ -168,10 +160,8 @@ class StudentInfoHeader extends StatelessWidget {
                   child: Text(
                     student.semester,
                     style: TextStyle(
-                      color: AppStyles.primaryColor,
-                      fontSize: isLargePhone
-                          ? 13
-                          : (isTablet ? 14 : 12),
+                      color: const Color(0xFF1B38E3),
+                      fontSize: isLargePhone ? 13 : (isTablet ? 14 : 12),
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -184,4 +174,3 @@ class StudentInfoHeader extends StatelessWidget {
     );
   }
 }
-

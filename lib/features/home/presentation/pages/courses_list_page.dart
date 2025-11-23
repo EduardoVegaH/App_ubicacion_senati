@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../../app/styles/app_styles.dart';
 import '../../data/models/student_model.dart';
 import 'course_history_page.dart';
 
@@ -19,11 +18,11 @@ class CoursesListPage extends StatelessWidget {
     final isLargePhone = screenSize.width >= 400 && !isTablet;
 
     return Scaffold(
-      backgroundColor: AppStyles.surfaceColor,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Mis Cursos'),
-        backgroundColor: AppStyles.primaryColor,
-        foregroundColor: AppStyles.textOnDark,
+        backgroundColor: const Color(0xFF1B38E3),
+        foregroundColor: Colors.white,
       ),
       body: ListView.builder(
         padding: EdgeInsets.all(isLargePhone ? 16 : (isTablet ? 20 : 14)),
@@ -62,7 +61,7 @@ class CoursesListPage extends StatelessWidget {
           ),
         );
       },
-      borderRadius: BorderRadius.circular(AppStyles.borderRadiusM),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
