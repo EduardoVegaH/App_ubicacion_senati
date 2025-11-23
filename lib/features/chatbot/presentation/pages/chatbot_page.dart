@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../../../app/styles/app_styles.dart';
+import '../../../../../app/styles/app_shadows.dart';
+import '../../../../../app/styles/app_spacing.dart';
 import '../../data/index.dart';
 import '../../domain/index.dart';
 import '../../data/models/chat_message.dart';
+import '../widgets/index.dart';
 
 /// Página de chatbot (refactorizada)
 class ChatbotPage extends StatefulWidget {
@@ -16,6 +19,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
   late final ChatbotRemoteDataSource _dataSource;
   late final ChatbotRepositoryImpl _repository;
   late final SendMessageUseCase _sendMessageUseCase;
+  late final ResetChatUseCase _resetChatUseCase;
   
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -28,6 +32,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
     _dataSource = ChatbotRemoteDataSource();
     _repository = ChatbotRepositoryImpl(_dataSource);
     _sendMessageUseCase = SendMessageUseCase(_repository);
+    _resetChatUseCase = ResetChatUseCase(_repository);
     
     _messages.add(ChatMessage(
       text: '¡Hola! Soy tu asistente virtual de SENATI. ¿En qué puedo ayudarte hoy?',
@@ -85,9 +90,9 @@ class _ChatbotPageState extends State<ChatbotPage> {
   }
 
   void _clearChat() {
+    _resetChatUseCase.call();
     setState(() {
       _messages.clear();
-      _repository.resetChat();
       _messages.add(ChatMessage(
         text: '¡Hola! Soy tu asistente virtual de SENATI. ¿En qué puedo ayudarte hoy?',
         isUser: false,
@@ -104,6 +109,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
 
     return Scaffold(
       backgroundColor: AppStyles.surfaceColor,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Row(
           children: [
@@ -128,132 +134,41 @@ class _ChatbotPageState extends State<ChatbotPage> {
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: EdgeInsets.all(isLargePhone ? 16 : (isTablet ? 20 : 14)),
+              padding: AppSpacing.cardPaddingMedium(isLargePhone, isTablet),
               itemCount: _messages.length + (_isLoading ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index == _messages.length) {
-                  return _buildLoadingIndicator();
+                  return const ChatLoadingIndicator();
                 }
-                return _buildMessageBubble(_messages[index], isLargePhone, isTablet);
+                return ChatMessageBubble(
+                  message: _messages[index],
+                  isLargePhone: isLargePhone,
+                  isTablet: isTablet,
+                );
               },
             ),
           ),
           Container(
             decoration: BoxDecoration(
               color: AppStyles.surfaceColor,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, -2))],
+              boxShadow: AppShadows.popupShadow,
             ),
-            padding: EdgeInsets.all(isLargePhone ? 12 : (isTablet ? 14 : 10)),
             child: SafeArea(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: 'Escribe tu mensaje...',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: Colors.grey[300]!)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: Colors.grey[300]!)),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: AppStyles.primaryColor, width: 2)),
-                        contentPadding: EdgeInsets.symmetric(horizontal: isLargePhone ? 20 : (isTablet ? 22 : 18), vertical: isLargePhone ? 12 : (isTablet ? 14 : 10)),
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                      ),
-                      maxLines: null,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendMessage(),
-                      enabled: !_isLoading,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(color: AppStyles.primaryColor, shape: BoxShape.circle),
-                    child: IconButton(
-                      icon: _isLoading
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
-                          : const Icon(Icons.send, color: Colors.white),
-                      onPressed: _isLoading ? null : _sendMessage,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMessageBubble(ChatMessage message, bool isLargePhone, bool isTablet) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: isLargePhone ? 12 : (isTablet ? 14 : 10)),
-      child: Row(
-        mainAxisAlignment: message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!message.isUser) ...[
-            Container(
-              width: isLargePhone ? 32 : (isTablet ? 36 : 28),
-              height: isLargePhone ? 32 : (isTablet ? 36 : 28),
-              decoration: BoxDecoration(color: AppStyles.primaryColor.withOpacity(0.1), shape: BoxShape.circle),
-              child: Icon(Icons.smart_toy, size: 18, color: AppStyles.primaryColor),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              padding: EdgeInsets.all(isLargePhone ? 14 : (isTablet ? 16 : 12)),
-              decoration: BoxDecoration(
-                color: message.isUser ? const Color(0xFF1B38E3) : Colors.grey[100],
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(message.isUser ? 16 : 4),
-                  bottomRight: Radius.circular(message.isUser ? 4 : 16),
+              child: Padding(
+                padding: AppSpacing.elementPaddingTiny(isLargePhone, isTablet),
+                child: ChatInputField(
+                  controller: _messageController,
+                  onSend: _sendMessage,
+                  isLoading: _isLoading,
+                  showContainerStyle: false,
                 ),
               ),
-              child: Text(message.text, style: TextStyle(color: message.isUser ? Colors.white : Colors.black87, fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14), height: 1.4)),
             ),
           ),
-          if (message.isUser) ...[
-            const SizedBox(width: 8),
-            Container(
-              width: isLargePhone ? 32 : (isTablet ? 36 : 28),
-              height: isLargePhone ? 32 : (isTablet ? 36 : 28),
-              decoration: BoxDecoration(color: AppStyles.primaryColor, shape: BoxShape.circle),
-              child: const Icon(Icons.person, size: 18, color: Colors.white),
-            ),
-          ],
         ],
       ),
     );
   }
 
-  Widget _buildLoadingIndicator() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(color: const Color(0xFF1B38E3).withOpacity(0.1), shape: BoxShape.circle),
-            child: const Icon(Icons.smart_toy, size: 18, color: Color(0xFF1B38E3)),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16), bottomLeft: Radius.circular(4), bottomRight: Radius.circular(16)),
-            ),
-            child: const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1B38E3)))),
-          ),
-        ],
-      ),
-    );
-  }
 }
 

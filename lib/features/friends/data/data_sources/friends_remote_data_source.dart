@@ -37,6 +37,64 @@ class FriendsRemoteDataSource {
     }
   }
 
+  /// Buscar estudiante por nombre
+  Future<List<FriendModel>> searchStudentByName(String name) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return [];
+
+      final querySnapshot = await _db
+          .collection(AppConstants.usersCollection)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        return [];
+      }
+
+      final searchName = name.toLowerCase().trim();
+      final results = <FriendModel>[];
+
+      for (var doc in querySnapshot.docs) {
+        // No permitir agregarse a sí mismo
+        if (currentUser.uid == doc.id) continue;
+
+        final data = doc.data();
+        final studentName = (data['NameEstudent'] ?? '').toString().toLowerCase();
+
+        // Buscar coincidencias parciales en el nombre
+        if (studentName.contains(searchName)) {
+          results.add(FriendModel.fromFirestore(data, doc.id));
+        }
+      }
+
+      return results;
+    } catch (e) {
+      print('Error buscando estudiante por nombre: $e');
+      return [];
+    }
+  }
+
+  /// Verificar si un usuario ya es amigo
+  Future<bool> isFriend(String friendUid) async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return false;
+
+      final userDoc = await _db
+          .collection(AppConstants.usersCollection)
+          .doc(currentUser.uid)
+          .get();
+
+      if (!userDoc.exists) return false;
+
+      final friends = userDoc.data()?['amigos'] as List<dynamic>? ?? [];
+      return friends.contains(friendUid);
+    } catch (e) {
+      print('Error verificando si es amigo: $e');
+      return false;
+    }
+  }
+
   /// Agregar amigo a la lista
   Future<bool> addFriend(String friendUid) async {
     try {

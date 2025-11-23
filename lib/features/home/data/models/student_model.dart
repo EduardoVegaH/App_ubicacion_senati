@@ -33,11 +33,19 @@ class StudentModel extends StudentEntity {
       );
     }).toList();
 
+    // Intentar múltiples nombres de campo para la foto (compatibilidad)
+    final photoUrl = data['foto'] ?? 
+                     data['Foto'] ?? 
+                     data['photoUrl'] ?? 
+                     data['photo'] ?? 
+                     data['fotoUrl'] ?? 
+                     '';
+
     return StudentModel(
       name: data['NameEstudent'] ?? '',
       id: data['IdEstudiante'] ?? '',
       semester: data['Semestre'] ?? '',
-      photoUrl: data['foto'] ?? '',
+      photoUrl: photoUrl,
       // Intentar ambos nombres de campo para compatibilidad
       zonalAddress: data['Campus'] ?? data['DireccionZonal'] ?? '',
       school: data['Escuela'] ?? '',

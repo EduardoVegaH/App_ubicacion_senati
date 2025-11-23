@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../../../app/styles/app_styles.dart';
+import '../../../../../app/styles/app_shadows.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../data/index.dart';
+import '../../data/use_cases/calculate_route_with_models_use_case.dart';
 import '../../domain/index.dart';
 import '../widgets/map_overlay_painter.dart';
 import '../widgets/salon_photo_popup.dart';
@@ -34,7 +36,7 @@ class MapNavigatorPage extends StatefulWidget {
 class _MapNavigatorPageState extends State<MapNavigatorPage> with TickerProviderStateMixin {
   late final NavigationRemoteDataSource _dataSource;
   late final NavigationRepositoryImpl _repository;
-  late final CalculateRouteUseCase _calculateRouteUseCase;
+  late final CalculateRouteWithModelsUseCase _calculateRouteWithModelsUseCase;
   late final FindNodeBySalonUseCase _findNodeBySalonUseCase;
   
   final TransformationController _transformationController = TransformationController();
@@ -57,7 +59,7 @@ class _MapNavigatorPageState extends State<MapNavigatorPage> with TickerProvider
     super.initState();
     _dataSource = NavigationRemoteDataSource();
     _repository = NavigationRepositoryImpl(_dataSource);
-    _calculateRouteUseCase = CalculateRouteUseCase(_repository);
+    _calculateRouteWithModelsUseCase = CalculateRouteWithModelsUseCase(_repository);
     _findNodeBySalonUseCase = FindNodeBySalonUseCase(_repository);
     
     _transformationController.addListener(_onTransformChanged);
@@ -287,23 +289,12 @@ class _MapNavigatorPageState extends State<MapNavigatorPage> with TickerProvider
       print('🔗 Edges desde entrada (${_entranceNode!.id}): ${startEdges.map((e) => e.toId).join(", ")}');
       print('🔗 Edges hacia/hasta destino (${_destinationNode!.id}): ${endEdges.length}');
       
-      final pathEntities = await _calculateRouteUseCase.call(
+      // Delegar cálculo de ruta y conversión al use case
+      _pathEdges = await _calculateRouteWithModelsUseCase.call(
         piso: pisoACargar,
         startNodeId: _entranceNode!.id,
         endNodeId: _destinationNode!.id,
       );
-      
-      // Convertir entidades a modelos
-      _pathEdges = pathEntities.map((e) {
-        return EdgeModel(
-          fromId: e.fromId,
-          toId: e.toId,
-          weight: e.weight,
-          piso: e.piso,
-          tipo: e.tipo,
-          shape: e.shape,
-        );
-      }).toList();
 
       if (_pathEdges.isEmpty) {
         print('❌ No se encontró ruta. Entrada: ${_entranceNode!.id}, Destino: ${_destinationNode!.id}');
@@ -756,13 +747,7 @@ class _MapNavigatorPageState extends State<MapNavigatorPage> with TickerProvider
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                          boxShadow: AppShadows.cardShadow,
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,

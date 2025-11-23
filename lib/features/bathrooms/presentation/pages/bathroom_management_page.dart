@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
 import '../../../../../app/styles/app_styles.dart';
+import '../../../../../app/styles/app_spacing.dart';
+import '../../../../core/widgets/app_bar_with_title/app_bar_with_title.dart';
+import '../../../../core/widgets/empty_state/empty_state.dart';
 import '../../data/index.dart';
 import '../../domain/index.dart';
+import '../widgets/floor_card.dart';
 
 /// Página de gestión de baños (refactorizada)
 class BathroomManagementPage extends StatefulWidget {
@@ -14,30 +16,34 @@ class BathroomManagementPage extends StatefulWidget {
 }
 
 class _BathroomManagementPageState extends State<BathroomManagementPage> {
-  late final BathroomRemoteDataSource _dataSource;
+  late final UpdateBathroomStatusUseCase _updateBathroomStatusUseCase;
+  late final GetBathroomsGroupedByFloorUseCase _getBathroomsGroupedByFloorUseCase;
+  late final GetUserNameUseCase _getUserNameUseCase;
   String? _userName;
 
   @override
   void initState() {
     super.initState();
-    _dataSource = BathroomRemoteDataSource();
+    final dataSource = BathroomRemoteDataSource();
+    final repository = BathroomRepositoryImpl(dataSource);
+    _updateBathroomStatusUseCase = UpdateBathroomStatusUseCase(repository);
+    _getBathroomsGroupedByFloorUseCase = GetBathroomsGroupedByFloorUseCase(repository);
+    _getUserNameUseCase = GetUserNameUseCase();
     _loadUserName();
   }
 
   Future<void> _loadUserName() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      setState(() {
-        _userName = user.displayName ?? user.email ?? 'Usuario';
-      });
-    }
+    final userName = await _getUserNameUseCase.call();
+    setState(() {
+      _userName = userName;
+    });
   }
 
   Future<void> _updateBathroomStatus(BathroomModel bathroom, BathroomStatus nuevoEstado) async {
     try {
-      await _dataSource.updateBathroomStatus(
-        bathroom.id,
-        nuevoEstado,
+      await _updateBathroomStatusUseCase.call(
+        bathroomId: bathroom.id,
+        nuevoEstado: nuevoEstado,
         usuarioLimpiezaNombre: _userName,
       );
 
@@ -117,14 +123,13 @@ class _BathroomManagementPageState extends State<BathroomManagementPage> {
 
     return Scaffold(
       backgroundColor: AppStyles.surfaceColor,
-      appBar: AppBar(
-        title: const Text('Gestión de Baños'),
+      appBar: const AppBarWithTitle(
+        title: 'Gestión de Baños',
         backgroundColor: AppStyles.primaryColor,
         foregroundColor: AppStyles.textOnDark,
-        elevation: 0,
       ),
-      body: StreamBuilder<Map<int, List<BathroomModel>>>(
-        stream: _dataSource.getBathroomsGroupedByFloor(),
+      body: StreamBuilder<Map<int, List<BathroomEntity>>>(
+        stream: _getBathroomsGroupedByFloorUseCase.call(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -161,155 +166,47 @@ class _BathroomManagementPageState extends State<BathroomManagementPage> {
           final bathroomsByFloor = snapshot.data!;
           final floors = bathroomsByFloor.keys.toList()..sort((a, b) => a.compareTo(b));
 
+          // Convertir entidades a modelos para la UI
+          final bathroomsByFloorAsModels = bathroomsByFloor.map(
+            (key, value) => MapEntry(
+              key,
+              value.map((entity) => BathroomModel(
+                id: entity.id,
+                nombre: entity.nombre,
+                piso: entity.piso,
+                estado: entity.estado,
+                tipo: entity.tipo,
+                usuarioLimpiezaId: entity.usuarioLimpiezaId,
+                usuarioLimpiezaNombre: entity.usuarioLimpiezaNombre,
+                inicioLimpieza: entity.inicioLimpieza,
+                finLimpieza: entity.finLimpieza,
+                ultimaActualizacion: entity.ultimaActualizacion,
+              )).toList(),
+            ),
+          );
+
           return RefreshIndicator(
             onRefresh: () async => setState(() {}),
             child: ListView.builder(
-              padding: EdgeInsets.all(isLargePhone ? 16 : (isTablet ? 20 : 14)),
+              padding: AppSpacing.cardPaddingMedium(isLargePhone, isTablet),
               itemCount: floors.length,
               itemBuilder: (context, index) {
                 final piso = floors[index];
-                final bathrooms = bathroomsByFloor[piso]!;
+                final bathrooms = bathroomsByFloorAsModels[piso]!;
                 return Padding(
                   padding: EdgeInsets.only(bottom: isLargePhone ? 12 : (isTablet ? 14 : 10)),
-                  child: _ManagementFloorCard(
+                  child: FloorCard(
                     piso: piso,
                     bathrooms: bathrooms,
                     onBathroomTap: _showStatusDialog,
-                    isLargePhone: isLargePhone,
-                    isTablet: isTablet,
+                    showEditIcon: true,
+                    showBathroomCount: true,
                   ),
                 );
               },
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _ManagementFloorCard extends StatelessWidget {
-  final int piso;
-  final List<BathroomModel> bathrooms;
-  final Function(BathroomModel) onBathroomTap;
-  final bool isLargePhone;
-  final bool isTablet;
-
-  const _ManagementFloorCard({
-    required this.piso,
-    required this.bathrooms,
-    required this.onBathroomTap,
-    required this.isLargePhone,
-    required this.isTablet,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppStyles.surfaceColor,
-        border: Border.all(color: Colors.grey[300]!, width: 1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          tilePadding: EdgeInsets.symmetric(
-            horizontal: isLargePhone ? 18 : (isTablet ? 20 : 16),
-            vertical: isLargePhone ? 8 : (isTablet ? 10 : 6),
-          ),
-          childrenPadding: EdgeInsets.only(bottom: isLargePhone ? 8 : (isTablet ? 10 : 6)),
-          shape: const Border(),
-          collapsedShape: const Border(),
-          leading: Container(
-            width: isLargePhone ? 48 : (isTablet ? 52 : 44),
-            height: isLargePhone ? 48 : (isTablet ? 52 : 44),
-            decoration: BoxDecoration(
-              color: AppStyles.primaryColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Icon(Icons.wc, size: isLargePhone ? 24 : (isTablet ? 26 : 22), color: AppStyles.primaryColor),
-            ),
-          ),
-          title: Text('Piso $piso', style: TextStyle(fontWeight: FontWeight.bold, fontSize: isLargePhone ? 18 : (isTablet ? 20 : 16), color: const Color(0xFF2C2C2C))),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text('${bathrooms.length} baño${bathrooms.length != 1 ? 's' : ''}', style: TextStyle(color: const Color(0xFF757575), fontSize: isLargePhone ? 14 : (isTablet ? 15 : 13))),
-          ),
-          children: bathrooms.map((bathroom) => _ManagementBathroomTile(
-            bathroom: bathroom,
-            onTap: () => onBathroomTap(bathroom),
-            isLargePhone: isLargePhone,
-            isTablet: isTablet,
-          )).toList(),
-        ),
-      ),
-    );
-  }
-}
-
-class _ManagementBathroomTile extends StatelessWidget {
-  final BathroomModel bathroom;
-  final VoidCallback onTap;
-  final bool isLargePhone;
-  final bool isTablet;
-
-  const _ManagementBathroomTile({
-    required this.bathroom,
-    required this.onTap,
-    required this.isLargePhone,
-    required this.isTablet,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final dateFormat = DateFormat('HH:mm');
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        margin: EdgeInsets.symmetric(horizontal: isLargePhone ? 18 : (isTablet ? 20 : 16), vertical: 4),
-        padding: EdgeInsets.all(isLargePhone ? 14 : (isTablet ? 16 : 12)),
-        decoration: BoxDecoration(
-          color: bathroom.estado.color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: bathroom.estado.color, width: 1.5),
-        ),
-        child: Row(
-          children: [
-            Icon(bathroom.estado.icon, size: isLargePhone ? 20 : (isTablet ? 22 : 18), color: bathroom.estado.color),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(bathroom.nombre, style: TextStyle(fontWeight: FontWeight.w600, fontSize: isLargePhone ? 16 : (isTablet ? 17 : 15), color: const Color(0xFF2C2C2C))),
-                  const SizedBox(height: 4),
-                  Text(bathroom.estado.label, style: TextStyle(color: bathroom.estado.color, fontSize: isLargePhone ? 13 : (isTablet ? 14 : 12), fontWeight: FontWeight.w500)),
-                  if (bathroom.estado == BathroomStatus.en_limpieza && bathroom.usuarioLimpiezaNombre != null) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(Icons.person, size: isLargePhone ? 14 : (isTablet ? 15 : 13), color: const Color(0xFF757575)),
-                        const SizedBox(width: 4),
-                        Text(bathroom.usuarioLimpiezaNombre!, style: TextStyle(color: const Color(0xFF757575), fontSize: isLargePhone ? 12 : (isTablet ? 13 : 11))),
-                        if (bathroom.inicioLimpieza != null) ...[
-                          const SizedBox(width: 8),
-                          Icon(Icons.access_time, size: isLargePhone ? 14 : (isTablet ? 15 : 13), color: const Color(0xFF757575)),
-                          const SizedBox(width: 4),
-                          Text(dateFormat.format(bathroom.inicioLimpieza!), style: TextStyle(color: const Color(0xFF757575), fontSize: isLargePhone ? 12 : (isTablet ? 13 : 11))),
-                        ],
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Icon(Icons.edit, size: isLargePhone ? 20 : (isTablet ? 22 : 18), color: bathroom.estado.color),
-          ],
-        ),
       ),
     );
   }

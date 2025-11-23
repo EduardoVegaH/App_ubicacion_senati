@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
-import '../../domain/entities/student_entity.dart';
-import '../../domain/entities/course_status_entity.dart';
-import '../../domain/entities/attendance_entity.dart';
-import '../../domain/use_cases/get_course_status_use_case.dart';
+import '../../../home/domain/entities/student_entity.dart';
+import '../../../home/domain/entities/course_status_entity.dart';
+import '../../../home/domain/entities/attendance_entity.dart';
+import '../../../home/domain/use_cases/get_course_status_use_case.dart';
 import '../../../navigation/presentation/pages/map_navigator_page.dart';
+import '../../../../core/widgets/primary_button/primary_button.dart';
+import '../../../../../app/styles/text_styles.dart';
+import '../../../../../app/styles/app_spacing.dart';
+import '../../../../core/widgets/status_badge/status_badge.dart';
 
 /// Widget de tarjeta de curso con diseño del código antiguo
 class CourseCard extends StatefulWidget {
@@ -52,7 +56,7 @@ class _CourseCardState extends State<CourseCard> {
         ),
         borderRadius: BorderRadius.circular(12),
       ),
-      padding: EdgeInsets.all(isLargePhone ? 18 : (isTablet ? 20 : 16)),
+      padding: AppSpacing.cardPaddingLarge(isLargePhone, isTablet),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -66,65 +70,17 @@ class _CourseCardState extends State<CourseCard> {
                   Expanded(
                     child: Text(
                       widget.course.name,
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 17 : (isTablet ? 18 : 16),
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2C2C2C),
-                      ),
+                      style: AppTextStyles.titleSmall(isLargePhone, isTablet),
                     ),
                   ),
                   const SizedBox(width: 8),
                   // Etiqueta de estado de asistencia GPS
-                  _buildAttendanceStatusBadge(isLargePhone, isTablet),
+                  _buildAttendanceStatusBadge(),
                 ],
               ),
               // Etiqueta de estado del curso
               SizedBox(height: isLargePhone ? 10 : (isTablet ? 12 : 8)),
-              Builder(
-                builder: (context) {
-                  // Solo mostrar etiquetas relevantes (próximo curso, tardío, en curso)
-                  if (statusInfo.status == CourseStatus.soon ||
-                      statusInfo.status == CourseStatus.late ||
-                      statusInfo.status == CourseStatus.inProgress) {
-                    return Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isLargePhone ? 10 : (isTablet ? 12 : 8),
-                        vertical: isLargePhone ? 6 : (isTablet ? 7 : 5),
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getCourseStatusColor(statusInfo.status).withOpacity(0.15),
-                        border: Border.all(
-                          color: _getCourseStatusColor(statusInfo.status),
-                          width: 1.5,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _getCourseStatusIcon(statusInfo.status),
-                            size: isLargePhone ? 16 : (isTablet ? 17 : 15),
-                            color: _getCourseStatusColor(statusInfo.status),
-                          ),
-                          SizedBox(
-                            width: isLargePhone ? 6 : (isTablet ? 7 : 5),
-                          ),
-                          Text(
-                            statusInfo.label,
-                            style: TextStyle(
-                              fontSize: isLargePhone ? 13 : (isTablet ? 14 : 12),
-                              fontWeight: FontWeight.bold,
-                              color: _getCourseStatusColor(statusInfo.status),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
+              _buildCourseStatusBadge(statusInfo, isLargePhone, isTablet),
             ],
           ),
           SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
@@ -144,25 +100,15 @@ class _CourseCardState extends State<CourseCard> {
                   children: [
                     Text(
                       'Horario',
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 13.5 : (isTablet ? 14 : 13),
-                        color: const Color(0xFF757575),
-                      ),
+                      style: AppTextStyles.courseCardLabel(isLargePhone, isTablet),
                     ),
                     Text(
                       '${widget.course.startTime} - ${widget.course.endTime}',
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 14.5 : (isTablet ? 15 : 14),
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2C2C2C),
-                      ),
+                      style: AppTextStyles.courseCardValue(isLargePhone, isTablet),
                     ),
                     Text(
                       'Duración: ${widget.course.duration}',
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 12.5 : (isTablet ? 13 : 12),
-                        color: const Color(0xFF757575),
-                      ),
+                      style: AppTextStyles.courseCardSmall(isLargePhone, isTablet),
                     ),
                   ],
                 ),
@@ -186,18 +132,11 @@ class _CourseCardState extends State<CourseCard> {
                   children: [
                     Text(
                       'Docente',
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 13.5 : (isTablet ? 14 : 13),
-                        color: const Color(0xFF757575),
-                      ),
+                      style: AppTextStyles.courseCardLabel(isLargePhone, isTablet),
                     ),
                     Text(
                       widget.course.teacher,
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 14.5 : (isTablet ? 15 : 14),
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2C2C2C),
-                      ),
+                      style: AppTextStyles.courseCardValue(isLargePhone, isTablet),
                     ),
                   ],
                 ),
@@ -221,25 +160,15 @@ class _CourseCardState extends State<CourseCard> {
                   children: [
                     Text(
                       'Ubicación',
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 13.5 : (isTablet ? 14 : 13),
-                        color: const Color(0xFF757575),
-                      ),
+                      style: AppTextStyles.courseCardLabel(isLargePhone, isTablet),
                     ),
                     Text(
                       widget.course.locationCode,
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 14.5 : (isTablet ? 15 : 14),
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2C2C2C),
-                      ),
+                      style: AppTextStyles.courseCardValue(isLargePhone, isTablet),
                     ),
                     Text(
                       widget.course.locationDetail,
-                      style: TextStyle(
-                        fontSize: isLargePhone ? 12.5 : (isTablet ? 13 : 12),
-                        color: const Color(0xFF757575),
-                      ),
+                      style: AppTextStyles.courseCardSmall(isLargePhone, isTablet),
                     ),
                   ],
                 ),
@@ -248,31 +177,15 @@ class _CourseCardState extends State<CourseCard> {
           ),
           SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
           // Botón Ver/Ocultar Mapa
-          SizedBox(
-            width: double.infinity,
-            height: isLargePhone ? 48 : (isTablet ? 50 : 44),
-            child: ElevatedButton.icon(
-              onPressed: () {
-                setState(() {
-                  _showMap = !_showMap;
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1B38E3),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              icon: Icon(_showMap ? Icons.arrow_upward : Icons.send),
-              label: Text(
-                _showMap ? 'Ocultar Mapa' : 'Ver Ubicación en Mapa',
-                style: TextStyle(
-                  fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
-                ),
-              ),
-            ),
+          PrimaryButton(
+            label: _showMap ? 'Ocultar Mapa' : 'Ver Ubicación en Mapa',
+            icon: _showMap ? Icons.arrow_upward : Icons.send,
+            onPressed: () {
+              setState(() {
+                _showMap = !_showMap;
+              });
+            },
+            variant: PrimaryButtonVariant.primary,
           ),
           // Mapa (si está visible)
           if (_showMap) ...[
@@ -303,18 +216,11 @@ class _CourseCardState extends State<CourseCard> {
                             children: [
                               Text(
                                 widget.course.locationDetail,
-                                style: TextStyle(
-                                  fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFF2C2C2C),
-                                ),
+                                style: AppTextStyles.bodyBoldMedium(isLargePhone, isTablet),
                               ),
                               Text(
                                 widget.course.name,
-                                style: TextStyle(
-                                  fontSize: isLargePhone ? 12.5 : (isTablet ? 13 : 12),
-                                  color: const Color(0xFF757575),
-                                ),
+                                style: AppTextStyles.courseCardSmall(isLargePhone, isTablet),
                               ),
                             ],
                           ),
@@ -338,42 +244,26 @@ class _CourseCardState extends State<CourseCard> {
                     padding: EdgeInsets.all(
                       isLargePhone ? 14 : (isTablet ? 16 : 12),
                     ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: isLargePhone ? 48 : (isTablet ? 50 : 44),
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          // Extraer información del salón desde locationCode
-                          // Formato esperado: "IND - TORRE B 60TB - 200"
-                          final salonId = _extractSalonId(widget.course.locationCode);
-                          final piso = _extractPiso(widget.course.locationDetail);
-                          
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => MapNavigatorPage(
-                                objetivoSalonId: salonId,
-                                piso: piso,
-                                salonNombre: widget.course.locationDetail,
-                              ),
+                    child: PrimaryButton(
+                      label: 'Navegar Ahora (Tiempo Real)',
+                      icon: Icons.send,
+                      onPressed: () {
+                        // Extraer información del salón desde locationCode
+                        // Formato esperado: "IND - TORRE B 60TB - 200"
+                        final salonId = _extractSalonId(widget.course.locationCode);
+                        final piso = _extractPiso(widget.course.locationDetail);
+                        
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => MapNavigatorPage(
+                              objetivoSalonId: salonId,
+                              piso: piso,
+                              salonNombre: widget.course.locationDetail,
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3D79FF),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
                           ),
-                          elevation: 0,
-                        ),
-                        icon: const Icon(Icons.send),
-                        label: Text(
-                          'Navegar Ahora (Tiempo Real)',
-                          style: TextStyle(
-                            fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
-                          ),
-                        ),
-                      ),
+                        );
+                      },
+                      variant: PrimaryButtonVariant.secondary,
                     ),
                   ),
                 ],
@@ -385,37 +275,31 @@ class _CourseCardState extends State<CourseCard> {
     );
   }
 
-  Widget _buildAttendanceStatusBadge(bool isLargePhone, bool isTablet) {
+  Widget _buildAttendanceStatusBadge() {
     final attendanceStatus = widget.attendanceStatus ?? AttendanceStatus.absent;
     final badgeInfo = _getAttendanceBadgeInfo(attendanceStatus);
 
-    return Container(
+    return StatusBadge(
+      label: badgeInfo.label,
+      color: badgeInfo.color,
+      icon: badgeInfo.icon,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: badgeInfo.color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: badgeInfo.color, width: 1.5),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            badgeInfo.icon,
-            size: isLargePhone ? 15 : (isTablet ? 16 : 14),
-            color: badgeInfo.color,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            badgeInfo.label,
-            style: TextStyle(
-              fontSize: isLargePhone ? 12.5 : (isTablet ? 13 : 12),
-              fontWeight: FontWeight.bold,
-              color: badgeInfo.color,
-            ),
-          ),
-        ],
-      ),
+      borderRadius: 12,
     );
+  }
+
+  Widget _buildCourseStatusBadge(CourseStatusInfo statusInfo, bool isLargePhone, bool isTablet) {
+    // Solo mostrar etiquetas relevantes (próximo curso, tardío, en curso)
+    if (statusInfo.status == CourseStatus.soon ||
+        statusInfo.status == CourseStatus.late ||
+        statusInfo.status == CourseStatus.inProgress) {
+      return StatusBadge(
+        label: statusInfo.label,
+        color: _getCourseStatusColor(statusInfo.status),
+        icon: _getCourseStatusIcon(statusInfo.status),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   AttendanceBadgeInfo _getAttendanceBadgeInfo(AttendanceStatus status) {

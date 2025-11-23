@@ -12,11 +12,18 @@ class FriendsRepositoryImpl implements FriendsRepository {
   @override
   Future<FriendEntity?> searchStudentById(String studentId) async {
     final model = await _dataSource.searchStudentById(studentId);
-    if (model != null) {
-      // Asegurar que esté en la lista de amigos
-      await _dataSource.addFriend(model.uid);
-    }
     return model?.toEntity();
+  }
+
+  @override
+  Future<List<FriendEntity>> searchStudentByName(String name) async {
+    final models = await _dataSource.searchStudentByName(name);
+    return models.map((m) => m.toEntity()).toList();
+  }
+
+  @override
+  Future<bool> isFriend(String friendUid) async {
+    return await _dataSource.isFriend(friendUid);
   }
   
   @override

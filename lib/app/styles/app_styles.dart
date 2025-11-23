@@ -76,6 +76,66 @@ class AppStyles {
   static const Color textDisabled = Color(0xFFBDBDBD);
   
   // ============================================
+  // 🎨 COLORES CON OPACIDAD
+  // ============================================
+  
+  /// Overlay blanco muy ligero (10% opacidad)
+  /// Usado en: Fondos de input, elementos sutiles
+  static Color get whiteOverlayVeryLight => Colors.white.withOpacity(0.1);
+  
+  /// Overlay blanco ligero (20% opacidad)
+  /// Usado en: Avatares, elementos con fondo sutil
+  static Color get whiteOverlayLight => Colors.white.withOpacity(0.2);
+  
+  /// Overlay blanco medio (25% opacidad)
+  /// Usado en: Filtros no seleccionados, fondos sutiles
+  static Color get whiteOverlayMedium => Colors.white.withOpacity(0.25);
+  
+  /// Overlay blanco medio-alto (30% opacidad)
+  /// Usado en: Indicadores de carga, elementos semi-transparentes
+  static Color get whiteOverlayMediumHigh => Colors.white.withOpacity(0.3);
+  
+  /// Overlay blanco fuerte (40% opacidad)
+  /// Usado en: Filtros seleccionados, elementos activos
+  static Color get whiteOverlayStrong => Colors.white.withOpacity(0.4);
+  
+  /// Overlay blanco muy fuerte (80% opacidad)
+  /// Usado en: Campos de input, fondos casi opacos
+  static Color get whiteOverlayVeryStrong => Colors.white.withOpacity(0.8);
+  
+  /// Overlay negro para backdrops (30% opacidad)
+  /// Usado en: Modales, popups, overlays
+  static Color get blackOverlayBackdrop => Colors.black.withOpacity(0.3);
+  
+  /// Overlay negro ligero (10% opacidad)
+  /// Usado en: Sombras sutiles, elementos flotantes
+  static Color get blackOverlayLight => Colors.black.withOpacity(0.1);
+  
+  /// Overlay negro medio (20% opacidad)
+  /// Usado en: Sombras de popups, elementos elevados
+  static Color get blackOverlayMedium => Colors.black.withOpacity(0.2);
+  
+  /// Overlay negro medio-alto (30% opacidad)
+  /// Usado en: Bordes de input, elementos semi-transparentes
+  static Color get blackOverlayMediumHigh => Colors.black.withOpacity(0.3);
+  
+  /// Overlay negro alto (50% opacidad)
+  /// Usado en: Placeholders, textos secundarios
+  static Color get blackOverlayHigh => Colors.black.withOpacity(0.5);
+  
+  /// Overlay negro muy ligero (5% opacidad)
+  /// Usado en: Headers, elementos con sombra muy sutil
+  static Color get blackOverlayVeryLight => Colors.black.withOpacity(0.05);
+  
+  /// Overlay de color primario fuerte (90% opacidad)
+  /// Usado en: Headers de chat, elementos con fondo primario
+  static Color get primaryColorOverlayStrong => primaryColor.withOpacity(0.9);
+  
+  /// Overlay de color primario medio (40% opacidad)
+  /// Usado en: Sombras de botones flotantes, elementos con acento
+  static Color get primaryColorOverlayMedium => primaryColor.withOpacity(0.4);
+  
+  // ============================================
   // 📏 ESPACIADOS (Padding/Margin)
   // ============================================
   
@@ -228,12 +288,13 @@ class AppStyles {
   );
   
   /// Estilo de Card
+  /// Nota: Para sombras específicas, usar AppShadows
   static BoxDecoration get cardDecoration => BoxDecoration(
     color: surfaceColor,
     borderRadius: BorderRadius.circular(borderRadiusM),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.1),
+        color: blackOverlayLight,
         blurRadius: 4,
         offset: const Offset(0, 2),
       ),

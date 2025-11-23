@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../domain/entities/student_entity.dart';
+import '../../../../../app/styles/text_styles.dart';
+import '../../../../core/widgets/avatar_with_badge/avatar_with_badge.dart';
 
 /// Widget de encabezado con información del estudiante
 class StudentInfoHeader extends StatelessWidget {
@@ -21,6 +23,7 @@ class StudentInfoHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final padding = isLargePhone ? 20.0 : (isTablet ? 24.0 : 16.0);
+    final isPresent = campusStatus == "Dentro del campus";
 
     return Container(
       width: double.infinity,
@@ -41,57 +44,11 @@ class StudentInfoHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Foto de perfil + estado
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: isLargePhone ? 64 : (isTablet ? 70 : 60),
-                height: isLargePhone ? 64 : (isTablet ? 70 : 60),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                  border: Border.all(color: Colors.white, width: 2),
-                  image: student.photoUrl.isNotEmpty
-                      ? DecorationImage(
-                          image: NetworkImage(student.photoUrl),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                ),
-                child: student.photoUrl.isEmpty
-                    ? Icon(
-                        Icons.person,
-                        size: isLargePhone ? 42 : (isTablet ? 45 : 40),
-                        color: const Color(0xFF757575),
-                      )
-                    : null,
-              ),
-              // Estado abajo derecha
-              Positioned(
-                bottom: -6,
-                right: -6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: campusStatus == "Dentro del campus"
-                        ? Colors.green
-                        : Colors.red,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    campusStatus == "Dentro del campus" ? "Presente" : "Ausente",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          AvatarWithBadge(
+            photoUrl: student.photoUrl,
+            badgeText: isPresent ? "Presente" : "Ausente",
+            badgeColor: isPresent ? Colors.green : Colors.red,
+            size: isLargePhone ? 64 : (isTablet ? 70 : 60),
           ),
           SizedBox(width: isLargePhone ? 14 : (isTablet ? 16 : 12)),
           // Nombre, ID y Semestre
@@ -106,12 +63,7 @@ class StudentInfoHeader extends StatelessWidget {
                     Expanded(
                       child: Text(
                         student.name.toUpperCase(),
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: isLargePhone ? 17 : (isTablet ? 18 : 16),
-                          fontWeight: FontWeight.bold,
-                          height: 1.2,
-                        ),
+                        style: AppTextStyles.studentName(isLargePhone, isTablet),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -139,11 +91,7 @@ class StudentInfoHeader extends StatelessWidget {
                 ),
                 Text(
                   'ID: ${student.id}',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: isLargePhone ? 14 : (isTablet ? 15 : 13),
-                    height: 1.2,
-                  ),
+                  style: AppTextStyles.studentId(isLargePhone, isTablet),
                 ),
                 SizedBox(
                   height: isLargePhone ? 8 : (isTablet ? 10 : 6),
@@ -159,11 +107,7 @@ class StudentInfoHeader extends StatelessWidget {
                   ),
                   child: Text(
                     student.semester,
-                    style: TextStyle(
-                      color: const Color(0xFF1B38E3),
-                      fontSize: isLargePhone ? 13 : (isTablet ? 14 : 12),
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: AppTextStyles.studentSemester(isLargePhone, isTablet),
                   ),
                 ),
               ],

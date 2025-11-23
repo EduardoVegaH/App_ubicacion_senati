@@ -1,7 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../../app/styles/app_styles.dart';
+import '../../../app/styles/app_shadows.dart';
 import '../../../features/chatbot/data/index.dart';
 import '../../../features/chatbot/domain/index.dart';
+import '../../../features/chatbot/presentation/widgets/index.dart';
 
 /// Widget de chatbot flotante con botón y chat desplegable
 class FloatingChatbot extends StatefulWidget {
@@ -135,31 +138,43 @@ class _FloatingChatbotState extends State<FloatingChatbot> {
         final isTablet = screenSize.width > 600;
         final isLargePhone = screenSize.width >= 400 && !isTablet;
         
-        final screenHeight = screenSize.height;
-        final chatHeight = keyboardHeight > 0
-            ? screenHeight - keyboardHeight - padding.top - padding.bottom - 90
-            : (screenHeight * 0.65).clamp(400.0, 600.0);
+        // Calcular posición bottom: cuando hay teclado, colocar justo encima del teclado
+        // Cuando no hay teclado, usar posición fija
+        final bottomPosition = keyboardHeight > 0 
+            ? keyboardHeight + 8.0
+            : 20.0;
+        
+        // Calcular altura máxima posible (nunca debe tocar el notch/status bar)
+        // padding.top incluye status bar + notch, agregamos margen adicional para seguridad
+        final maxPossibleHeight = screenSize.height 
+            - padding.top    // evitar notch/status bar
+            - 120.0;         // margen adicional para no tapar la barra de estado
+        
+        // Calcular altura deseada del chat
+        // Con teclado: 45% de la pantalla (más compacto)
+        // Sin teclado: 55% de la pantalla (flotante abajo, sin tapar status bar)
+        final desiredHeight = screenSize.height * (keyboardHeight > 0 ? 0.45 : 0.55);
+        
+        // Usar la menor entre la altura deseada y la máxima posible
+        // Mínimo 250px para usabilidad, máximo según límites de pantalla
+        final finalChatHeight = desiredHeight.clamp(250.0, maxPossibleHeight);
         
         final chatWidth = isTablet 
             ? (screenSize.width * 0.38).clamp(350.0, 450.0)
             : isLargePhone 
                 ? (screenSize.width * 0.90).clamp(320.0, 380.0)
                 : (screenSize.width * 0.94).clamp(300.0, 360.0);
-        
-        final bottomPosition = keyboardHeight > 0 
-            ? keyboardHeight + 8.0
-            : 80.0;
 
         return Stack(
           children: [
             if (_isChatOpen)
               Positioned(
-                bottom: bottomPosition,
-                right: isTablet ? 20.0 : 16.0,
                 left: isTablet ? null : 16.0,
+                right: isTablet ? 20.0 : 16.0,
+                bottom: bottomPosition,
                 child: SizedBox(
                   width: chatWidth,
-                  height: chatHeight,
+                  height: finalChatHeight,
                   child: Container(
                     decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(20)),
                     child: ClipRRect(
@@ -168,42 +183,19 @@ class _FloatingChatbotState extends State<FloatingChatbot> {
                         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: AppStyles.whiteOverlayLight,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+                            border: Border.all(color: AppStyles.whiteOverlayLight, width: 1),
                           ),
                           child: Column(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1B38E3).withOpacity(0.9),
-                                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 40,
-                                      height: 40,
-                                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
-                                      child: const Icon(Icons.smart_toy, color: Colors.white, size: 24),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    const Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text('Asistente Virtual', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                                          Text('En línea', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                                        ],
-                                      ),
-                                    ),
-                                    IconButton(icon: const Icon(Icons.refresh, color: Colors.white, size: 20), onPressed: _clearChat, tooltip: 'Nueva conversación'),
-                                    IconButton(icon: const Icon(Icons.close, color: Colors.white, size: 20), onPressed: _toggleChat),
-                                  ],
-                                ),
+                              ChatHeader(
+                                title: 'Asistente Virtual',
+                                subtitle: 'En línea',
+                                onRefresh: _clearChat,
+                                onClose: _toggleChat,
                               ),
-                              Expanded(
+                              Flexible(
                                 child: Container(
                                   color: Colors.transparent,
                                   child: ListView.builder(
@@ -212,53 +204,21 @@ class _FloatingChatbotState extends State<FloatingChatbot> {
                                     itemCount: _messages.length + (_isLoading ? 1 : 0),
                                     itemBuilder: (context, index) {
                                       if (index == _messages.length) {
-                                        return _buildLoadingIndicator();
+                                        return const ChatLoadingIndicator();
                                       }
-                                      return _buildMessageBubble(_messages[index], isLargePhone, isTablet);
+                                      return ChatMessageBubble(
+                                        message: _messages[index],
+                                        isLargePhone: isLargePhone,
+                                        isTablet: isTablet,
+                                      );
                                     },
                                   ),
                                 ),
                               ),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.1),
-                                  borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextField(
-                                        controller: _messageController,
-                                        decoration: InputDecoration(
-                                          hintText: 'Escribe tu mensaje...',
-                                          hintStyle: TextStyle(color: Colors.black.withOpacity(0.5)),
-                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: Colors.black.withOpacity(0.3))),
-                                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: Colors.black.withOpacity(0.3))),
-                                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: const BorderSide(color: Colors.black, width: 2)),
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                          filled: true,
-                                          fillColor: Colors.white.withOpacity(0.8),
-                                        ),
-                                        style: const TextStyle(color: Colors.black),
-                                        maxLines: null,
-                                        textInputAction: TextInputAction.send,
-                                        onSubmitted: (_) => _sendMessage(),
-                                        enabled: !_isLoading,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      decoration: const BoxDecoration(color: Color(0xFF1B38E3), shape: BoxShape.circle),
-                                      child: IconButton(
-                                        icon: _isLoading
-                                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
-                                            : const Icon(Icons.send, color: Colors.white),
-                                        onPressed: _isLoading ? null : _sendMessage,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                              ChatInputField(
+                                controller: _messageController,
+                                onSend: _sendMessage,
+                                isLoading: _isLoading,
                               ),
                             ],
                           ),
@@ -268,110 +228,30 @@ class _FloatingChatbotState extends State<FloatingChatbot> {
                   ),
                 ),
               ),
-            Positioned(
-              bottom: 16,
-              right: 16,
-              child: GestureDetector(
-                onTap: _toggleChat,
-                child: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1B38E3),
-                    shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: const Color(0xFF1B38E3).withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))],
+            // Botón flotante solo visible cuando el chat está cerrado
+            if (!_isChatOpen)
+              Positioned(
+                bottom: 16,
+                right: 16,
+                child: GestureDetector(
+                  onTap: _toggleChat,
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: AppStyles.primaryColor,
+                      shape: BoxShape.circle,
+                      boxShadow: AppShadows.floatingButtonShadow(AppStyles.primaryColor),
+                    ),
+                    child: const Icon(Icons.smart_toy, color: Colors.white, size: 28),
                   ),
-                  child: Icon(_isChatOpen ? Icons.close : Icons.smart_toy, color: Colors.white, size: 28),
                 ),
               ),
-            ),
           ],
         );
       },
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message, bool isLargePhone, bool isTablet) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        mainAxisAlignment: message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!message.isUser) ...[
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1B38E3),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))],
-              ),
-              child: const Icon(Icons.smart_toy, size: 18, color: Colors.white),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: message.isUser ? const Color(0xFF1B38E3) : Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(message.isUser ? 16 : 4),
-                  bottomRight: Radius.circular(message.isUser ? 4 : 16),
-                ),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))],
-              ),
-              child: Text(message.text, style: TextStyle(color: message.isUser ? Colors.white : Colors.black, fontSize: 14, height: 1.4, fontWeight: FontWeight.w500)),
-            ),
-          ),
-          if (message.isUser) ...[
-            const SizedBox(width: 8),
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF1B38E3), width: 2),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))],
-              ),
-              child: const Icon(Icons.person, size: 18, color: Color(0xFF1B38E3)),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoadingIndicator() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.3), shape: BoxShape.circle),
-            child: const Icon(Icons.smart_toy, size: 16, color: Colors.white),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16), bottomLeft: Radius.circular(4), bottomRight: Radius.circular(16)),
-            ),
-            child: const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1B38E3)))),
-          ),
-        ],
-      ),
-    );
-  }
 }
 

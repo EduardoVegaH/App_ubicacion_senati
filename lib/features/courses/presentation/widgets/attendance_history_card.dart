@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../domain/entities/attendance_entity.dart';
+import '../../../home/domain/entities/attendance_entity.dart';
+import '../../../../../app/styles/text_styles.dart';
+import '../../../../../app/styles/app_spacing.dart';
 
 /// Widget de tarjeta de historial de asistencia
 class AttendanceHistoryCard extends StatelessWidget {
@@ -27,7 +29,7 @@ class AttendanceHistoryCard extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(10),
       ),
-      padding: EdgeInsets.all(isLargePhone ? 14 : (isTablet ? 16 : 12)),
+      padding: AppSpacing.cardPaddingSmall(isLargePhone, isTablet),
       child: Row(
         children: [
           // Icono circular de estado
@@ -53,20 +55,13 @@ class AttendanceHistoryCard extends StatelessWidget {
                 // Fecha
                 Text(
                   _formatDate(record.date),
-                  style: TextStyle(
-                    fontSize: isLargePhone ? 15 : (isTablet ? 16 : 14),
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C2C2C),
-                  ),
+                  style: AppTextStyles.bodyBoldMedium(isLargePhone, isTablet),
                 ),
                 const SizedBox(height: 4),
                 // Hora
                 Text(
                   '${record.startTime} - ${record.endTime}',
-                  style: TextStyle(
-                    fontSize: isLargePhone ? 12 : (isTablet ? 13 : 11),
-                    color: const Color(0xFF757575),
-                  ),
+                  style: AppTextStyles.bodyMicro(isLargePhone, isTablet),
                 ),
                 const SizedBox(height: 8),
                 // Badge de estado
@@ -85,11 +80,7 @@ class AttendanceHistoryCard extends StatelessWidget {
                   ),
                   child: Text(
                     statusInfo.label,
-                    style: TextStyle(
-                      fontSize: isLargePhone ? 11 : (isTablet ? 12 : 10),
-                      fontWeight: FontWeight.bold,
-                      color: statusInfo.color,
-                    ),
+                    style: AppTextStyles.textWithColor(isLargePhone, isTablet, statusInfo.color),
                   ),
                 ),
               ],

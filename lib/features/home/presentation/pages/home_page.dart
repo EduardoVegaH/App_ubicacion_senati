@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../../../../../app/styles/app_styles.dart';
+import '../../../../../app/styles/text_styles.dart';
 import '../../../../core/widgets/floating_chatbot/floating_chatbot.dart';
+import '../../../../core/widgets/empty_state/empty_state.dart';
 import '../../../../features/auth/presentation/pages/login_page.dart';
 import '../../data/index.dart';
 import '../../domain/index.dart';
 import '../widgets/student_info_header.dart';
-import '../widgets/course_card.dart';
+import '../../../courses/presentation/widgets/course_card.dart';
 import '../widgets/home_drawer.dart';
 import '../widgets/academic_status_block.dart';
+import '../widgets/section_header.dart';
+import '../widgets/info_banner.dart';
 
 /// Página principal de home (completamente refactorizada con Clean Architecture)
 class HomePage extends StatefulWidget {
@@ -26,13 +30,12 @@ class _HomePageState extends State<HomePage> {
   late final NotificationDataSource _notificationDataSource;
 
   // Use cases
-  late final GetStudentDataUseCase _getStudentDataUseCase;
+  late final LoadStudentWithCoursesUseCase _loadStudentWithCoursesUseCase;
   late final UpdateLocationUseCase _updateLocationUseCase;
   late final CheckCampusStatusUseCase _checkCampusStatusUseCase;
   late final GetCourseStatusUseCase _getCourseStatusUseCase;
   late final ValidateAttendanceUseCase _validateAttendanceUseCase;
   late final LogoutUseCase _logoutUseCase;
-  late final GenerateCourseHistoryUseCase _generateCourseHistoryUseCase;
 
   // Estado
   StudentEntity? _student;
@@ -68,126 +71,49 @@ class _HomePageState extends State<HomePage> {
     );
 
     // Inicializar use cases
-    _getStudentDataUseCase = GetStudentDataUseCase(_repository);
+    final getStudentDataUseCase = GetStudentDataUseCase(_repository);
+    final generateCourseHistoryUseCase = GenerateCourseHistoryUseCase();
+    _loadStudentWithCoursesUseCase = LoadStudentWithCoursesUseCase(
+      getStudentDataUseCase: getStudentDataUseCase,
+      generateCourseHistoryUseCase: generateCourseHistoryUseCase,
+    );
     _updateLocationUseCase = UpdateLocationUseCase(_repository);
     _checkCampusStatusUseCase = CheckCampusStatusUseCase();
     _getCourseStatusUseCase = GetCourseStatusUseCase();
     _validateAttendanceUseCase = ValidateAttendanceUseCase(_getCourseStatusUseCase);
     _logoutUseCase = LogoutUseCase(_repository);
-    _generateCourseHistoryUseCase = GenerateCourseHistoryUseCase();
   }
 
   Future<void> _loadStudentData() async {
     try {
-      final student = await _getStudentDataUseCase.call();
+      // Delegar toda la lógica de carga y procesamiento al use case
+      final student = await _loadStudentWithCoursesUseCase.call();
+      
+      if (!mounted) return;
+      
       if (student != null) {
-        // Si no hay cursos desde Firebase, usar cursos de ejemplo (como en el código antiguo)
-        List<CourseEntity> coursesToUse = student.coursesToday;
-        
-        if (coursesToUse.isEmpty) {
-          print('⚠️ No hay cursos en Firebase, usando cursos de ejemplo');
-          coursesToUse = _getExampleCourses();
-        }
-        
-        // Generar historial para cada curso si no existe
-        final coursesWithHistory = coursesToUse.map((course) {
-          if (course.history == null) {
-            final history = _generateCourseHistoryUseCase.call(
-              courseName: course.name,
-              startTime: course.startTime,
-              endTime: course.endTime,
-            );
-            return CourseEntity(
-              name: course.name,
-              type: course.type,
-              startTime: course.startTime,
-              endTime: course.endTime,
-              duration: course.duration,
-              teacher: course.teacher,
-              locationCode: course.locationCode,
-              locationDetail: course.locationDetail,
-              classroomLatitude: course.classroomLatitude,
-              classroomLongitude: course.classroomLongitude,
-              classroomRadius: course.classroomRadius,
-              history: history,
-            );
-          }
-          return course;
-        }).toList();
-
         setState(() {
-          _student = StudentEntity(
-            name: student.name,
-            id: student.id,
-            semester: student.semester,
-            photoUrl: student.photoUrl,
-            zonalAddress: student.zonalAddress,
-            school: student.school,
-            career: student.career,
-            institutionalEmail: student.institutionalEmail,
-            coursesToday: coursesWithHistory,
-          );
+          _student = student;
           _loading = false;
         });
 
         // Programar notificaciones
-        await _scheduleNotifications(coursesWithHistory);
+        await _scheduleNotifications(student.coursesToday);
       } else {
+        if (mounted) {
+          setState(() {
+            _loading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error cargando datos del estudiante: $e');
+      if (mounted) {
         setState(() {
           _loading = false;
         });
       }
-    } catch (e) {
-      print('Error cargando datos del estudiante: $e');
-      setState(() {
-        _loading = false;
-      });
     }
-  }
-
-  /// Cursos de ejemplo (del código antiguo) para usar cuando no hay cursos en Firebase
-  List<CourseEntity> _getExampleCourses() {
-    return [
-      CourseEntity(
-        name: 'SEMINARIO COMPLEMENT PRÁCTI',
-        type: 'Seminario',
-        startTime: '7:00 AM',
-        endTime: '10:00 AM',
-        duration: '7:00 AM - 10:00 AM',
-        teacher: 'MANSILLA NEYRA, JUAN RAMON',
-        locationCode: 'IND - TORRE B 60TB - 200',
-        locationDetail: 'Torre B, Piso 2, Salón 200',
-        classroomLatitude: -11.997200,
-        classroomLongitude: -77.061500,
-        classroomRadius: 10.0,
-      ),
-      CourseEntity(
-        name: 'DESARROLLO HUMANO',
-        type: 'Clase',
-        startTime: '3:40 PM',
-        endTime: '5:00 PM',
-        duration: '3:40 PM - 5:00 PM',
-        teacher: 'GONZALES LEON, JACQUELINE CORAL',
-        locationCode: 'IND - TORRE C 60TC - 604',
-        locationDetail: 'Torre C, Piso 6, Salón 604',
-        classroomLatitude: -11.997300,
-        classroomLongitude: -77.061600,
-        classroomRadius: 10.0,
-      ),
-      CourseEntity(
-        name: 'REDES DE COMPUTADORAS',
-        type: 'Tecnológico',
-        startTime: '7:00 AM',
-        endTime: '9:15 AM',
-        duration: '7:00 AM - 9:15 AM',
-        teacher: 'MANSILLA NEYRA, JUAN RAMON',
-        locationCode: 'IND - TORRE A 60TA - 604',
-        locationDetail: 'Torre A, Piso 6, Salón 604',
-        classroomLatitude: -11.997100,
-        classroomLongitude: -77.061400,
-        classroomRadius: 10.0,
-      ),
-    ];
   }
 
   Future<void> _scheduleNotifications(List<CourseEntity> courses) async {
@@ -240,9 +166,11 @@ class _HomePageState extends State<HomePage> {
 
       final status = isInside ? "Dentro del campus" : "Fuera del campus";
       
-      setState(() {
-        _campusStatus = status;
-      });
+      if (mounted) {
+        setState(() {
+          _campusStatus = status;
+        });
+      }
 
       await _updateLocationUseCase.call(
         userId: user.uid,
@@ -460,39 +388,24 @@ class _HomePageState extends State<HomePage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // Título con icono y fecha
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.access_time,
-                                    color: AppStyles.primaryColor,
-                                    size: isLargePhone
-                                        ? 26
-                                        : (isTablet ? 28 : 24),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Cursos Programados Hoy',
-                                    style: TextStyle(
-                                      fontSize: isLargePhone
-                                          ? 20
-                                          : (isTablet ? 22 : 18),
-                                      fontWeight: FontWeight.bold,
-                                      color: AppStyles.textPrimary,
-                                    ),
-                                  ),
-                                ],
+                              SectionHeader(
+                                icon: Icons.access_time,
+                                title: 'Cursos Programados',
+                                iconColor: AppStyles.primaryColor,
                               ),
                               SizedBox(
                                 height: isLargePhone ? 10 : (isTablet ? 12 : 8),
                               ),
                               Text(
                                 _getCurrentDate(),
-                                style: TextStyle(
-                                  fontSize: isLargePhone
-                                      ? 15
-                                      : (isTablet ? 16 : 14),
-                                  color: AppStyles.textSecondary,
-                                ),
+                                style: AppTextStyles.bodyMedium(isLargePhone, isTablet),
+                              ),
+                              SizedBox(
+                                height: isLargePhone ? 10 : (isTablet ? 12 : 8),
+                              ),
+                              Text(
+                                'Total de cursos: ${sortedCourses.length}',
+                                style: AppTextStyles.bodyBold(isLargePhone, isTablet),
                               ),
                               SizedBox(
                                 height: isLargePhone
@@ -501,27 +414,9 @@ class _HomePageState extends State<HomePage> {
                               ),
                               // Lista de cursos ordenados por horario
                               if (sortedCourses.isEmpty)
-                                Padding(
-                                  padding: EdgeInsets.all(isLargePhone ? 24 : (isTablet ? 28 : 20)),
-                                  child: Center(
-                                    child: Column(
-                                      children: [
-                                        Icon(
-                                          Icons.school_outlined,
-                                          size: 64,
-                                          color: Colors.grey[400],
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Text(
-                                          'No hay cursos programados para hoy',
-                                          style: TextStyle(
-                                            fontSize: isLargePhone ? 16 : (isTablet ? 18 : 14),
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                EmptyState(
+                                  icon: Icons.school_outlined,
+                                  message: 'No hay cursos programados para hoy',
                                 )
                               else
                                 ...sortedCourses.asMap().entries.map((entry) {
@@ -548,56 +443,10 @@ class _HomePageState extends State<HomePage> {
                                 padding: EdgeInsets.only(
                                   top: isLargePhone ? 18 : (isTablet ? 20 : 16),
                                 ),
-                                child: Container(
-                                  padding: EdgeInsets.all(
-                                    isLargePhone ? 18 : (isTablet ? 20 : 16),
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppStyles.lightGrayBackground,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.location_on,
-                                            color: AppStyles.primaryColor,
-                                            size: isLargePhone
-                                                ? 21
-                                                : (isTablet ? 22 : 20),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              'Presiona el botón "Ver Ubicación en Mapa" en cada curso para navegar al salón',
-                                              style: TextStyle(
-                                                fontSize: isLargePhone
-                                                    ? 14
-                                                    : (isTablet ? 15 : 13),
-                                                color: AppStyles.textPrimary,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      SizedBox(
-                                        height: isLargePhone
-                                            ? 10
-                                            : (isTablet ? 12 : 8),
-                                      ),
-                                      Text(
-                                        'Total de cursos hoy: ${sortedCourses.length}',
-                                        style: TextStyle(
-                                          fontSize: isLargePhone
-                                              ? 14
-                                              : (isTablet ? 15 : 13),
-                                          fontWeight: FontWeight.bold,
-                                          color: AppStyles.textPrimary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                child: InfoBanner(
+                                  icon: Icons.location_on,
+                                  message: 'Presiona el botón "Ver Ubicación en Mapa" en cada curso para navegar al salón',
+                                  iconColor: AppStyles.primaryColor,
                                 ),
                               ),
                             ],

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../../../app/styles/app_styles.dart';
+import '../../../../../app/styles/text_styles.dart';
 import '../../domain/entities/student_entity.dart';
 import '../../../bathrooms/presentation/pages/bathroom_status_page.dart';
 import '../../../friends/presentation/pages/friends_page.dart';
 import '../../../chatbot/presentation/pages/chatbot_page.dart';
-import '../../presentation/pages/courses_list_page.dart';
+import '../../../courses/presentation/pages/courses_list_page.dart';
 import '../../data/models/student_model.dart';
 
 /// Widget para el drawer lateral
@@ -47,11 +48,7 @@ class HomeDrawer extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Menú',
-                        style: TextStyle(
-                          color: AppStyles.textOnDark,
-                          fontSize: isLargePhone ? 24 : (isTablet ? 26 : 22),
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: AppTextStyles.titleLarge(isLargePhone, isTablet, AppStyles.textOnDark),
                       ),
                     ),
                     IconButton(
@@ -270,11 +267,11 @@ class HomeDrawer extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: TextStyle(
-                  color: isLogout ? Colors.red.shade300 : AppStyles.textOnDark,
-                  fontSize: isLargePhone ? 16 : (isTablet ? 18 : 15),
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AppTextStyles.bodySmall(
+                  isLargePhone,
+                  isTablet,
+                  isLogout ? Colors.red.shade300 : AppStyles.textOnDark,
+                ).copyWith(fontWeight: FontWeight.w500),
               ),
             ),
             Icon(

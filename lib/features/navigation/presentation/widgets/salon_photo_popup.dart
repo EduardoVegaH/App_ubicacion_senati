@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../app/styles/app_styles.dart';
+import '../../../../app/styles/app_shadows.dart';
 
 /// Widget que muestra un pop-up estilo Google Maps con la foto del salón
 /// Aparece desde abajo con animación
@@ -46,7 +48,7 @@ class _SalonPhotoPopupState extends State<SalonPhotoPopup> {
         GestureDetector(
           onTap: widget.onClose,
           child: Container(
-            color: Colors.black.withOpacity(0.3),
+            color: AppStyles.blackOverlayBackdrop,
           ),
         ),
         // Contenedor de imagen con animación desde abajo (estilo Google Maps)
@@ -62,13 +64,7 @@ class _SalonPhotoPopupState extends State<SalonPhotoPopup> {
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
+                boxShadow: AppShadows.popupShadow,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
