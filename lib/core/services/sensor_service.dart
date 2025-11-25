@@ -473,6 +473,7 @@ class SensorService {
       double runningThreshold = 13.0;
       
       bool stepDetected = false;
+      // Detectar cuando z cruza el umbral de abajo hacia arriba
       if (_lastAccelZ <= walkingThreshold && event.z > walkingThreshold) {
         stepDetected = true;
       }
@@ -484,6 +485,8 @@ class SensorService {
         _onStepDetected(accelMagnitude);
       }
     });
+    
+    print('✅ Acelerómetro iniciado - escuchando eventos');
 
     _gyroSub = gyroscopeEventStream().listen((event) {
       gyroscope = [event.x, event.y, event.z];

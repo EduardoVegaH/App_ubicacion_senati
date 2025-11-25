@@ -51,6 +51,7 @@ import '../../features/navigation/domain/use_cases/initialize_floor_graph.dart';
 import '../../features/navigation/domain/use_cases/get_route_to_room.dart';
 import '../../features/navigation/domain/use_cases/initialize_edges_use_case.dart';
 import '../../features/navigation/domain/use_cases/find_nearest_elevator_node.dart';
+import '../../core/services/sensor_service.dart';
 
 /// Service Locator global usando GetIt
 final sl = GetIt.instance;
@@ -98,6 +99,15 @@ Future<void> init() async {
   );
   sl.registerLazySingleton<FirestoreNavigationDataSource>(
     () => FirestoreNavigationDataSource(),
+  );
+
+  // ============================================
+  // 🔴 CORE SERVICES
+  // ============================================
+  
+  // Sensor Service (singleton global - se inicia al arrancar la app)
+  sl.registerLazySingleton<SensorService>(
+    () => SensorService(),
   );
 
   // ============================================
@@ -206,6 +216,15 @@ Future<void> init() async {
   sl.registerLazySingleton(() => InitializeEdgesUseCase(sl<GraphInitializer>()));
   sl.registerLazySingleton(() => GetRouteToRoomUseCase(sl<NavigationRepository>()));
   sl.registerLazySingleton(() => FindNearestElevatorNodeUseCase(sl<NavigationRepository>()));
+
+  // ============================================
+  // 🚀 INICIALIZAR SERVICIOS GLOBALES
+  // ============================================
+  
+  // Iniciar el sensor inmediatamente para que esté listo antes de entrar al mapa
+  final sensorService = sl<SensorService>();
+  sensorService.start();
+  print('✅ SensorService iniciado globalmente - posX=${sensorService.posX}, posY=${sensorService.posY}, heading=${sensorService.heading}');
 
 }
 

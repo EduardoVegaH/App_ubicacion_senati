@@ -27,7 +27,7 @@ class NavigationMapPage extends StatefulWidget {
 
 class _NavigationMapPageState extends State<NavigationMapPage> {
   late final GetRouteToRoomUseCase _getRouteToRoomUseCase;
-  final SensorService _sensorService = SensorService();
+  late final SensorService _sensorService; // Usar el singleton global
   TransformationController? _mapTransformationController;
   List<MapNode>? _pathNodes;
   MapNode? _entranceNode; // Nodo de inicio (entrada)
@@ -39,9 +39,17 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
   @override
   void initState() {
     super.initState();
-    _sensorService.start();
-    _sensorService.onDataChanged = () => setState(() {});
+    // Usar el sensor singleton global (ya está iniciado)
+    _sensorService = sl<SensorService>();
+    _sensorService.onDataChanged = () {
+      if (mounted) {
+        setState(() {
+          // Forzar reconstrucción cuando el sensor cambia
+        });
+      }
+    };
     print('🚀 NavigationMapPage initState: piso ${widget.floor}, desde ${widget.fromNodeId} hasta ${widget.toNodeId}');
+    print('✅ Sensor global usado: posX=${_sensorService.posX}, posY=${_sensorService.posY}, heading=${_sensorService.heading}');
     try {
       _getRouteToRoomUseCase = sl<GetRouteToRoomUseCase>();
       print('✅ GetRouteToRoomUseCase obtenido del service locator');
@@ -60,7 +68,8 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
 
   @override
   void dispose() {
-    _sensorService.stop();
+    // NO detener el sensor aquí - es global y debe seguir funcionando
+    // _sensorService.stop();
     super.dispose();
   }
 
@@ -198,52 +207,6 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
   Widget build(BuildContext context) {
     print('🎨 NavigationMapPage build: loading=$_loading, error=${_errorMessage != null}, pathNodes=${_pathNodes?.length ?? 0}');
     
-    // Calcular posición del marcador del usuario (igual que en la rama antigua)
-    Offset? userMarkerPosition;
-    double? userHeading;
-    if (_entranceNode != null) {
-      // Convertir posX y posY del sensor (en metros) a coordenadas del SVG
-      const double pixelScale = 10.0;
-      final double userSvgX = _entranceNode!.x + (_sensorService.posX * pixelScale);
-      final double userSvgY = _entranceNode!.y + (_sensorService.posY * pixelScale);
-      
-      // Obtener el tamaño de la pantalla
-      final screenSize = MediaQuery.of(context).size;
-      final displayWidth = screenSize.width;
-      final displayHeight = screenSize.height;
-      
-      // Tamaño del SVG basado en el viewBox
-      final svgSize = widget.floor == 1 
-          ? const Size(2808, 1416)
-          : const Size(2117, 1729);
-      
-      // Convertir coordenadas del SVG a coordenadas de pantalla
-      final svgAspectRatio = svgSize.width / svgSize.height;
-      final screenAspectRatio = displayWidth / displayHeight;
-      
-      double scaleX, scaleY, offsetX, offsetY;
-      if (svgAspectRatio > screenAspectRatio) {
-        scaleX = displayWidth / svgSize.width;
-        scaleY = scaleX;
-        offsetX = 0;
-        offsetY = (displayHeight - svgSize.height * scaleY) / 2;
-      } else {
-        scaleY = displayHeight / svgSize.height;
-        scaleX = scaleY;
-        offsetX = (displayWidth - svgSize.width * scaleX) / 2;
-        offsetY = 0;
-      }
-      
-      final double markerScreenX = offsetX + (userSvgX * scaleX);
-      final double markerScreenY = offsetY + (userSvgY * scaleY);
-      
-      userMarkerPosition = Offset(markerScreenX, markerScreenY);
-      userHeading = _sensorService.heading;
-      
-      // Debug: verificar que se está calculando
-      print('📍 Marcador: posX=${_sensorService.posX.toStringAsFixed(2)}, posY=${_sensorService.posY.toStringAsFixed(2)}, screenX=${markerScreenX.toStringAsFixed(1)}, screenY=${markerScreenY.toStringAsFixed(1)}');
-    }
-    
     return Scaffold(
       backgroundColor: AppStyles.surfaceColor,
       appBar: AppBarWithTitle(
@@ -295,80 +258,89 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
                   ),
                 )
               : _pathNodes != null && _pathNodes!.isNotEmpty
-                  ? Stack(
-                      children: [
-                        MapCanvas(
-                          floor: widget.floor,
-                          svgAssetPath: _getSvgAssetPath(widget.floor),
-                          pathNodes: _pathNodes!,
-                          entranceNode: _entranceNode,
-                          showNodes: _showNodes,
-                          onControllerReady: (controller) {
-                            _mapTransformationController = controller;
-                            controller.addListener(() {
-                              if (mounted) {
-                                setState(() {
-                                  _currentTransform = controller.value;
+                  ? LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Dimensiones del SVG original (igual que en la rama antigua)
+                        const double svgWidth = 1412;
+                        const double svgHeight = 2806;
+                        const double pixelScale = 10.8; // Igual que en la rama antigua
+                        
+                        // Calcular el tamaño del SVG renderizado (con BoxFit.contain)
+                        final double widgetWidth = constraints.maxWidth;
+                        final double widgetHeight = constraints.maxHeight;
+                        final double svgAspectRatio = svgWidth / svgHeight;
+                        final double widgetAspectRatio = widgetWidth / widgetHeight;
+                        
+                        double displayWidth;
+                        double displayHeight;
+                        double offsetX = 0;
+                        double offsetY = 0;
+                        
+                        if (svgAspectRatio > widgetAspectRatio) {
+                          // SVG es más ancho, se ajusta al ancho
+                          displayWidth = widgetWidth;
+                          displayHeight = widgetWidth / svgAspectRatio;
+                          offsetY = (widgetHeight - displayHeight) / 2;
+                        } else {
+                          // SVG es más alto, se ajusta a la altura
+                          displayHeight = widgetHeight;
+                          displayWidth = widgetHeight * svgAspectRatio;
+                          offsetX = (widgetWidth - displayWidth) / 2;
+                        }
+                        
+                        // Calcular posición del marcador del usuario (igual que en la rama antigua)
+                        double? markerScreenX;
+                        double? markerScreenY;
+                        if (_entranceNode != null) {
+                          // Convertir posX y posY del sensor (en metros) a coordenadas del SVG
+                          final double userSvgX = _entranceNode!.x + (_sensorService.posX * pixelScale);
+                          final double userSvgY = _entranceNode!.y + (_sensorService.posY * pixelScale);
+                          
+                          // Convertir coordenadas del SVG a coordenadas de pantalla
+                          markerScreenX = offsetX + (userSvgX / svgWidth) * displayWidth;
+                          markerScreenY = offsetY + (userSvgY / svgHeight) * displayHeight;
+                        }
+                        
+                        return Stack(
+                          children: [
+                            MapCanvas(
+                              floor: widget.floor,
+                              svgAssetPath: _getSvgAssetPath(widget.floor),
+                              pathNodes: _pathNodes!,
+                              entranceNode: _entranceNode,
+                              showNodes: _showNodes,
+                              sensorService: _sensorService,
+                              onControllerReady: (controller) {
+                                _mapTransformationController = controller;
+                                controller.addListener(() {
+                                  if (mounted) {
+                                    setState(() {
+                                      _currentTransform = controller.value;
+                                    });
+                                  }
                                 });
-                              }
-                            });
-                          },
-                        ),
-                        // Marcador del usuario (directamente en el Stack del padre)
-                        if (userMarkerPosition != null && userHeading != null)
-                          IgnorePointer(
-                            key: ValueKey('user_marker_${_sensorService.posX.toStringAsFixed(2)}_${_sensorService.posY.toStringAsFixed(2)}'),
-                            child: Transform(
-                              transform: _mapTransformationController?.value ?? Matrix4.identity(),
-                              child: Positioned(
-                                left: userMarkerPosition!.dx - 15,
-                                top: userMarkerPosition!.dy - 15,
-                                child: Transform.rotate(
-                                  angle: userHeading!,
-                                  child: Container(
-                                    width: 30,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF1B38E3),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 3,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.3),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: CustomPaint(
-                                      painter: _UserMarkerPainter(),
-                                    ),
-                                  ),
+                              },
+                            ),
+                            // Toggle para mostrar/ocultar nodos
+                            Positioned(
+                              top: 16,
+                              left: 16,
+                              child: FloatingActionButton.small(
+                                onPressed: () {
+                                  setState(() {
+                                    _showNodes = !_showNodes;
+                                  });
+                                },
+                                backgroundColor: AppStyles.primaryColor,
+                                child: Icon(
+                                  _showNodes ? Icons.visibility : Icons.visibility_off,
+                                  color: AppStyles.textOnDark,
                                 ),
                               ),
                             ),
-                          ),
-                        // Toggle para mostrar/ocultar nodos
-                        Positioned(
-                          top: 16,
-                          left: 16,
-                          child: FloatingActionButton.small(
-                            onPressed: () {
-                              setState(() {
-                                _showNodes = !_showNodes;
-                              });
-                            },
-                            backgroundColor: AppStyles.primaryColor,
-                            child: Icon(
-                              _showNodes ? Icons.visibility : Icons.visibility_off,
-                              color: AppStyles.textOnDark,
-                            ),
-                          ),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     )
                   : const Center(
                       child: Text('No se encontró una ruta'),
