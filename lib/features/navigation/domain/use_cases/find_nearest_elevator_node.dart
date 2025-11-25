@@ -47,10 +47,6 @@ class FindNearestElevatorNodeUseCase {
       }
     }
 
-    if (nearestNode != null) {
-      print('✅ Nodo más cercano a ascensores: ${nearestNode.id} (distancia: ${minDistance.toStringAsFixed(2)})');
-    }
-
     return nearestNode;
   }
 }

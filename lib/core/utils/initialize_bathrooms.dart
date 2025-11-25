@@ -84,7 +84,6 @@ class BathroomInitializer {
     ];
 
     final batch = _db.batch();
-    int count = 0;
 
     for (var bathroomData in sampleBathrooms) {
       final docRef = _db.collection('bathrooms').doc();
@@ -92,11 +91,9 @@ class BathroomInitializer {
         ...bathroomData,
         'ultimaActualizacion': FieldValue.serverTimestamp(),
       });
-      count++;
     }
 
     await batch.commit();
-    print('✅ Se inicializaron $count baños de ejemplo');
   }
 
   // Limpiar todos los baños (usar con precaución)
@@ -109,7 +106,6 @@ class BathroomInitializer {
     }
     
     await batch.commit();
-    print('✅ Se eliminaron ${snapshot.docs.length} baños');
   }
 
   // Actualizar estados de baños existentes (para pisos 3 y 5)
@@ -134,9 +130,6 @@ class BathroomInitializer {
 
     if (updated > 0) {
       await batch.commit();
-      print('✅ Se actualizaron $updated baños a estado "en_limpieza"');
-    } else {
-      print('⚠️ No se encontraron baños en los pisos 3 o 5 para actualizar');
     }
   }
 }

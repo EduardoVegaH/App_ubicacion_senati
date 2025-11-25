@@ -51,14 +51,9 @@ class MapRoutePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    print('🎨 MapRoutePainter.paint: ${pathNodes.length} nodos, canvas size: ${size.width}x${size.height}');
-    
     if (pathNodes.length < 2) {
-      print('⚠️ MapRoutePainter: No hay suficientes nodos para dibujar (${pathNodes.length} < 2)');
       return;
     }
-    
-    print('🎨 MapRoutePainter: Dibujando ruta con ${pathNodes.length} nodos');
 
     final routePaint = Paint()
       ..color = routeColor

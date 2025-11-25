@@ -38,19 +38,11 @@ class _MapCanvasState extends State<MapCanvas> {
   final TransformationController _transformationController =
       TransformationController();
   double _scale = 1.0;
-  Matrix4 _currentTransform = Matrix4.identity();
 
   @override
   void initState() {
     super.initState();
-    _transformationController.addListener(() {
-      _onTransformChanged();
-      if (mounted) {
-        setState(() {
-          _currentTransform = _transformationController.value;
-        });
-      }
-    });
+    _transformationController.addListener(_onTransformChanged);
     // Exponer el controller al padre
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onControllerReady?.call(_transformationController);
@@ -82,19 +74,9 @@ class _MapCanvasState extends State<MapCanvas> {
 
   @override
   Widget build(BuildContext context) {
-    // Tamaño del SVG basado en el viewBox
-    // Piso 1: 2808x1416, Piso 2: 2117x1729
     final svgSize = widget.floor == 1 
         ? const Size(2808, 1416)
         : const Size(2117, 1729);
-    
-    // Log para debugging (fuera del árbol de widgets)
-    if (widget.pathNodes.isNotEmpty) {
-      print('🎨 MapCanvas: Preparando overlay de ruta con ${widget.pathNodes.length} nodos');
-      print('   SVG size: ${svgSize.width}x${svgSize.height}');
-    } else {
-      print('⚠️ MapCanvas: No hay nodos en la ruta para dibujar');
-    }
     
     return Stack(
       children: [
@@ -187,30 +169,3 @@ class _MapCanvasState extends State<MapCanvas> {
   }
 }
 
-/// Painter para el marcador del usuario (flecha direccional)
-class _UserMarkerPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    // Dibujar una flecha apuntando hacia arriba (norte = 0°)
-    final path = Path();
-    final center = Offset(size.width / 2, size.height / 2);
-    final arrowSize = size.width * 0.4;
-
-    // Punto superior (punta de la flecha)
-    path.moveTo(center.dx, center.dy - arrowSize);
-    // Punto inferior izquierdo
-    path.lineTo(center.dx - arrowSize * 0.6, center.dy + arrowSize * 0.3);
-    // Punto inferior derecho
-    path.lineTo(center.dx + arrowSize * 0.6, center.dy + arrowSize * 0.3);
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

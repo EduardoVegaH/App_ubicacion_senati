@@ -40,26 +40,17 @@ class NotificationService {
       });
 
       if (initialized == true) {
-        print('✅ Plugin de notificaciones inicializado correctamente');
-        // Solicitar permisos en Android 13+
         try {
           final androidPlugin = _notifications
               .resolvePlatformSpecificImplementation<
                   AndroidFlutterLocalNotificationsPlugin>();
           
           if (androidPlugin != null) {
-            final granted = await androidPlugin.requestNotificationsPermission();
-            print('🔔 Permiso de notificaciones: ${granted == true ? "CONCEDIDO" : "DENEGADO"}');
-            
-            if (granted != true) {
-              print('⚠️ ADVERTENCIA: Los permisos de notificaciones no fueron concedidos');
-            }
+            await androidPlugin.requestNotificationsPermission();
           }
         } catch (e) {
-          print('❌ Error al solicitar permisos de notificaciones: $e');
+          print('Error al solicitar permisos de notificaciones: $e');
         }
-      } else {
-        print('❌ El plugin de notificaciones no se inicializó correctamente');
       }
     } catch (e) {
       print('Error en NotificationService.initialize: $e');
@@ -109,50 +100,30 @@ class NotificationService {
       
       if (androidPlugin != null) {
         final granted = await androidPlugin.areNotificationsEnabled();
-        print('🔔 Estado de permisos de notificaciones: ${granted == true ? "HABILITADAS" : "DESHABILITADAS"}');
         return granted ?? false;
       }
-      return true; // En iOS o si no hay plugin, asumimos que está bien
+      return true;
     } catch (e) {
-      print('❌ Error al verificar permisos: $e');
+      print('Error al verificar permisos: $e');
       return false;
     }
   }
 
   // Programar notificación para un curso
   static Future<void> scheduleCourseNotification(Course course) async {
-    print('📅 Intentando programar notificación para: ${course.name}');
-    
-    // Verificar permisos primero
-    final hasPermissions = await checkNotificationPermissions();
-    if (!hasPermissions) {
-      print('⚠️ ADVERTENCIA: Los permisos de notificaciones no están habilitados');
-      print('💡 El usuario debe habilitar las notificaciones en la configuración del dispositivo');
-    }
+    await checkNotificationPermissions();
     
     final startTime = _parseTime(course.startTime);
     if (startTime == null) {
-      print('❌ Error: No se pudo parsear el tiempo: ${course.startTime}');
       return;
     }
 
-    // Calcular tiempo de notificación (10 minutos antes)
     final notificationTime = startTime.subtract(const Duration(minutes: 10));
     final now = DateTime.now();
 
-    print('🕐 Hora actual: ${now.toString()}');
-    print('🕐 Hora de inicio del curso: ${startTime.toString()}');
-    print('🕐 Hora de notificación programada: ${notificationTime.toString()}');
-    print('⏱️ Tiempo hasta la notificación: ${notificationTime.difference(now).inMinutes} minutos');
-
-    // Solo programar si la notificación es en el futuro (hoy)
     if (notificationTime.isBefore(now)) {
-      print('⚠️ La notificación ya pasó, no se programa');
-      print('💡 Sugerencia: Verifica que la hora del dispositivo sea correcta');
       return;
     }
-
-    print('✅ La notificación será en el futuro, programando...');
 
     // Cancelar notificaciones anteriores del mismo curso
     await cancelNotification(course.name.hashCode);
@@ -182,16 +153,12 @@ class NotificationService {
       iOS: iosDetails,
     );
 
-    // Programar la notificación
     try {
       final scheduledTime = tz.TZDateTime.from(notificationTime, tz.local);
-      print('📲 Programando notificación para: ${scheduledTime.toString()}');
-      print('📲 ID de notificación: ${course.name.hashCode}');
       
-      // Intentar con exactAllowWhileIdle primero, si falla usar exact
       try {
         await _notifications.zonedSchedule(
-          course.name.hashCode, // ID único basado en el nombre del curso
+          course.name.hashCode,
           'Próximo curso en 10 minutos',
           '${course.name}\n${course.startTime} - ${course.endTime}',
           scheduledTime,
@@ -200,10 +167,7 @@ class NotificationService {
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
         );
-        print('✅ Notificación programada exitosamente (modo exactAllowWhileIdle) para ${course.name}');
       } catch (e) {
-        print('⚠️ Error con exactAllowWhileIdle, intentando con modo exact: $e');
-        // Si falla, intentar con modo exact
         await _notifications.zonedSchedule(
           course.name.hashCode,
           'Próximo curso en 10 minutos',
@@ -214,25 +178,18 @@ class NotificationService {
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
         );
-        print('✅ Notificación programada exitosamente (modo exact) para ${course.name}');
       }
     } catch (e) {
-      print('❌ Error al programar notificación: $e');
-      print('💡 Verifica:');
-      print('   1. Que los permisos de notificaciones estén habilitados');
-      print('   2. Que la hora del dispositivo sea correcta');
-      print('   3. Que la app tenga permisos de "Programar alarmas exactas"');
+      print('Error al programar notificación: $e');
     }
   }
 
   // Programar notificaciones para todos los cursos
   static Future<void> scheduleAllCourseNotifications(
       List<Course> courses) async {
-    print('🔔 Iniciando programación de notificaciones para ${courses.length} cursos');
     for (var course in courses) {
       await scheduleCourseNotification(course);
     }
-    print('✅ Programación de notificaciones completada');
   }
 
   // Cancelar una notificación específica
@@ -251,8 +208,6 @@ class NotificationService {
       final now = DateTime.now();
       final testTime = now.add(Duration(seconds: secondsFromNow));
       final scheduledTime = tz.TZDateTime.from(testTime, tz.local);
-      
-      print('🧪 Programando notificación de prueba para: ${scheduledTime.toString()}');
       
       const AndroidNotificationDetails androidDetails =
           AndroidNotificationDetails(
@@ -287,10 +242,8 @@ class NotificationService {
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
-      
-      print('✅ Notificación de prueba programada exitosamente');
     } catch (e) {
-      print('❌ Error al programar notificación de prueba: $e');
+      print('Error al programar notificación de prueba: $e');
     }
   }
 }

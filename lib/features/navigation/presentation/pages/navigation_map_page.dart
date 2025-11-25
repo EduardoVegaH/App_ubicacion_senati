@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../app/styles/app_styles.dart';
 import '../../../../core/widgets/app_bar/index.dart';
+import '../../../../core/widgets/destination_photo_viewer/index.dart';
 import '../../../../core/services/sensor_service.dart';
 import '../../domain/index.dart';
 import '../../domain/repositories/navigation_repository.dart';
 import '../../domain/use_cases/get_route_to_room.dart';
+import '../../data/utils/destination_info_extractor.dart';
 import '../widgets/map_canvas.dart';
 
 /// Página de navegación que muestra el mapa con la ruta calculada
@@ -27,31 +29,23 @@ class NavigationMapPage extends StatefulWidget {
 
 class _NavigationMapPageState extends State<NavigationMapPage> {
   late final GetRouteToRoomUseCase _getRouteToRoomUseCase;
-  late final SensorService _sensorService; // Usar el singleton global
-  TransformationController? _mapTransformationController;
+  late final SensorService _sensorService;
   List<MapNode>? _pathNodes;
-  MapNode? _entranceNode; // Nodo de inicio (entrada)
+  MapNode? _entranceNode;
   bool _loading = true;
   String? _errorMessage;
-  bool _showNodes = true; // Mostrar nodos azules por defecto para debugging
-  Matrix4 _currentTransform = Matrix4.identity();
+  bool _showNodes = true;
 
   @override
   void initState() {
     super.initState();
     // Usar el sensor singleton global (ya está iniciado)
     _sensorService = sl<SensorService>();
-    // Configurar callback para actualizar UI cuando el sensor cambia (igual que código antiguo)
     _sensorService.onDataChanged = () => setState(() {});
-    print('🚀 NavigationMapPage initState: piso ${widget.floor}, desde ${widget.fromNodeId} hasta ${widget.toNodeId}');
-    print('✅ Sensor global usado: posX=${_sensorService.posX}, posY=${_sensorService.posY}, heading=${_sensorService.heading}');
     try {
       _getRouteToRoomUseCase = sl<GetRouteToRoomUseCase>();
-      print('✅ GetRouteToRoomUseCase obtenido del service locator');
       _loadRoute();
-    } catch (e, stackTrace) {
-      print('❌ Error obteniendo GetRouteToRoomUseCase: $e');
-      print('Stack trace: $stackTrace');
+    } catch (e) {
       if (mounted) {
         setState(() {
           _errorMessage = 'Error inicializando: $e';
@@ -75,56 +69,22 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
     });
 
     try {
-      print('🔍 Calculando ruta: piso ${widget.floor}, desde ${widget.fromNodeId} hasta ${widget.toNodeId}');
-      
-      // Verificar que los nodos existan antes de calcular la ruta
       final repository = sl<NavigationRepository>();
       final nodes = await repository.getNodesForFloor(widget.floor);
-      print('📊 Nodos disponibles en piso ${widget.floor}: ${nodes.length}');
       
       if (nodes.isEmpty) {
         throw Exception('No hay nodos inicializados para el piso ${widget.floor}. '
             'Por favor, inicializa los nodos desde la pantalla de administración.');
       }
       
-      // Listar algunos IDs de nodos disponibles para debugging
-      print('📋 Ejemplos de IDs de nodos disponibles en Firestore:');
-      for (var i = 0; i < (nodes.length > 10 ? 10 : nodes.length); i++) {
-        final node = nodes[i];
-        print('   - ${node.id} (${node.x.toStringAsFixed(1)}, ${node.y.toStringAsFixed(1)})');
-      }
-      
-      // Verificar si los nodos tienen el formato correcto (node#XX)
-      final hasNewFormat = nodes.any((n) => n.id.contains('#'));
-      if (!hasNewFormat && widget.floor == 2) {
-        print('⚠️ ADVERTENCIA: Los nodos en Firestore NO tienen el formato nuevo (node#XX)');
-        print('⚠️ Los nodos deberían tener formato como: node#37, node#34_sal#A200, etc.');
-        print('⚠️ Por favor, re-inicializa los nodos desde la pantalla de administración.');
-      }
-      
-      // Verificar que el nodo origen existe
       final fromNodeExists = nodes.any((n) => n.id == widget.fromNodeId);
       if (!fromNodeExists) {
-        print('❌ Nodo origen no encontrado: ${widget.fromNodeId}');
-        print('💡 Nodos disponibles que podrían servir como origen:');
-        // Buscar nodos de escalera o entrada
-        final entranceNodes = nodes.where((n) => 
-          n.id.contains('escalera') || 
-          n.id.contains('puerta') || 
-          n.id.contains('entrada') ||
-          n.type == 'escalera'
-        ).take(5).toList();
-        for (var node in entranceNodes) {
-          print('   - ${node.id} (${node.type ?? "sin tipo"})');
-        }
         throw Exception('Nodo origen "${widget.fromNodeId}" no encontrado en piso ${widget.floor}. '
             'Verifica que los nodos estén inicializados correctamente.');
       }
       
-      // Verificar que el nodo destino existe
       final toNodeExists = nodes.any((n) => n.id == widget.toNodeId);
       if (!toNodeExists) {
-        print('❌ Nodo destino no encontrado: ${widget.toNodeId}');
         throw Exception('Nodo destino "${widget.toNodeId}" no encontrado en piso ${widget.floor}. '
             'Verifica que el ID del salón sea correcto.');
       }
@@ -135,40 +95,14 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
         toNodeId: widget.toNodeId,
       );
 
-      print('✅ Ruta encontrada: ${path.length} nodos');
-      for (var i = 0; i < path.length; i++) {
-        final node = path[i];
-        print('  ${i + 1}. ${node.id} (${node.x.toStringAsFixed(1)}, ${node.y.toStringAsFixed(1)})');
-      }
-      
-      // Verificar que la ruta comienza en el nodo correcto
-      if (path.isNotEmpty && path.first.id != widget.fromNodeId) {
-        print('⚠️ ADVERTENCIA: La ruta no comienza en el nodo de inicio esperado');
-        print('   Esperado: ${widget.fromNodeId}');
-        print('   Encontrado: ${path.first.id}');
-      }
-      
-      // Verificar que la ruta termina en el nodo correcto
-      if (path.isNotEmpty && path.last.id != widget.toNodeId) {
-        print('⚠️ ADVERTENCIA: La ruta no termina en el nodo de destino esperado');
-        print('   Esperado: ${widget.toNodeId}');
-        print('   Encontrado: ${path.last.id}');
-      }
-
       if (mounted) {
-        // El primer nodo de la ruta es el nodo de entrada
         setState(() {
           _pathNodes = path;
           _entranceNode = path.isNotEmpty ? path.first : null;
           _loading = false;
         });
-        print('✅ Estado actualizado: ${path.length} nodos en la ruta');
       }
-    } catch (e, stackTrace) {
-      print('❌ Error calculando ruta: $e');
-      print('Stack trace: $stackTrace');
-      
-      // Mejorar el mensaje de error para que sea más útil
+    } catch (e) {
       String errorMessage = e.toString();
       if (e.toString().contains('no encontrado')) {
         errorMessage = '${e.toString()}\n\n'
@@ -198,10 +132,52 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
     }
   }
 
+  void _showDestinationPhoto() {
+    if (_pathNodes == null || _pathNodes!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay ruta disponible para mostrar el destino'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // Extraer información del destino desde el node ID
+    final destinationInfo = DestinationInfoExtractor.extractDestinationInfo(widget.toNodeId);
+    final tower = destinationInfo['tower'];
+    final roomNumber = destinationInfo['roomNumber'];
+    final imagePath = destinationInfo['imagePath'] ?? 'assets/fotos/foto-salon-b-200.png'; // Fallback
+    
+    // Construir nombre del destino
+    final destinationName = DestinationInfoExtractor.buildDestinationName(
+      tower,
+      roomNumber,
+      widget.floor,
+    );
+
+    // Construir nombre del salón (ej: "Salón 200")
+    final salonName = roomNumber != null ? 'Salón $roomNumber' : null;
+
+    // Número de segmentos de la ruta
+    final routeSegments = _pathNodes!.length - 1; // Los segmentos son las conexiones entre nodos
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DestinationPhotoViewer(
+        imagePath: imagePath,
+        destinationName: destinationName,
+        routeSegments: routeSegments,
+        salonName: salonName,
+        onClose: () => Navigator.of(context).pop(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    print('🎨 NavigationMapPage build: loading=$_loading, error=${_errorMessage != null}, pathNodes=${_pathNodes?.length ?? 0}');
-    
     return Scaffold(
       backgroundColor: AppStyles.surfaceColor,
       appBar: AppBarWithTitle(
@@ -213,164 +189,195 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
           ? const Center(
               child: CircularProgressIndicator(),
             )
-          : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          size: 64,
-                          color: AppStyles.errorColor,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error al calcular la ruta',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppStyles.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppStyles.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: _loadRoute,
-                          child: const Text('Reintentar'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : _pathNodes != null && _pathNodes!.isNotEmpty
-                  ? LayoutBuilder(
-                      builder: (context, constraints) {
-                        // Dimensiones del SVG original (igual que en la rama antigua)
-                        const double svgWidth = 1412;
-                        const double svgHeight = 2806;
-                        const double pixelScale = 10.8; // Igual que en la rama antigua
-                        
-                        // Calcular el tamaño del SVG renderizado (con BoxFit.contain)
-                        final double widgetWidth = constraints.maxWidth;
-                        final double widgetHeight = constraints.maxHeight;
-                        final double svgAspectRatio = svgWidth / svgHeight;
-                        final double widgetAspectRatio = widgetWidth / widgetHeight;
-                        
-                        double displayWidth;
-                        double displayHeight;
-                        double offsetX = 0;
-                        double offsetY = 0;
-                        
-                        if (svgAspectRatio > widgetAspectRatio) {
-                          // SVG es más ancho, se ajusta al ancho
-                          displayWidth = widgetWidth;
-                          displayHeight = widgetWidth / svgAspectRatio;
-                          offsetY = (widgetHeight - displayHeight) / 2;
-                        } else {
-                          // SVG es más alto, se ajusta a la altura
-                          displayHeight = widgetHeight;
-                          displayWidth = widgetHeight * svgAspectRatio;
-                          offsetX = (widgetWidth - displayWidth) / 2;
-                        }
-                        
-                        // Calcular posición del marcador del usuario (igual que en la rama antigua)
-                        double? markerScreenX;
-                        double? markerScreenY;
-                        if (_entranceNode != null) {
-                          // Convertir posX y posY del sensor (en metros) a coordenadas del SVG
-                          final double userSvgX = _entranceNode!.x + (_sensorService.posX * pixelScale);
-                          final double userSvgY = _entranceNode!.y + (_sensorService.posY * pixelScale);
-                          
-                          // Convertir coordenadas del SVG a coordenadas de pantalla
-                          markerScreenX = offsetX + (userSvgX / svgWidth) * displayWidth;
-                          markerScreenY = offsetY + (userSvgY / svgHeight) * displayHeight;
-                        }
-                        
-                        return Stack(
-                          children: [
-                            MapCanvas(
-                              floor: widget.floor,
-                              svgAssetPath: _getSvgAssetPath(widget.floor),
-                              pathNodes: _pathNodes!,
-                              entranceNode: _entranceNode,
-                              showNodes: _showNodes,
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                // Dimensiones del SVG original (igual que en la rama antigua)
+                const double svgWidth = 1412;
+                const double svgHeight = 2806;
+                const double pixelScale = 10.8; // Igual que en la rama antigua
+                
+                // Calcular el tamaño del SVG renderizado (con BoxFit.contain)
+                final double widgetWidth = constraints.maxWidth;
+                final double widgetHeight = constraints.maxHeight;
+                final double svgAspectRatio = svgWidth / svgHeight;
+                final double widgetAspectRatio = widgetWidth / widgetHeight;
+                
+                double displayWidth;
+                double displayHeight;
+                double offsetX = 0;
+                double offsetY = 0;
+                
+                if (svgAspectRatio > widgetAspectRatio) {
+                  // SVG es más ancho, se ajusta al ancho
+                  displayWidth = widgetWidth;
+                  displayHeight = widgetWidth / svgAspectRatio;
+                  offsetY = (widgetHeight - displayHeight) / 2;
+                } else {
+                  // SVG es más alto, se ajusta a la altura
+                  displayHeight = widgetHeight;
+                  displayWidth = widgetHeight * svgAspectRatio;
+                  offsetX = (widgetWidth - displayWidth) / 2;
+                }
+                
+                // Calcular posición del marcador del usuario (igual que en la rama antigua)
+                double? markerScreenX;
+                double? markerScreenY;
+                if (_entranceNode != null) {
+                  // Convertir posX y posY del sensor (en metros) a coordenadas del SVG
+                  final double userSvgX = _entranceNode!.x + (_sensorService.posX * pixelScale);
+                  final double userSvgY = _entranceNode!.y + (_sensorService.posY * pixelScale);
+                  
+                  // Convertir coordenadas del SVG a coordenadas de pantalla
+                  markerScreenX = offsetX + (userSvgX / svgWidth) * displayWidth;
+                  markerScreenY = offsetY + (userSvgY / svgHeight) * displayHeight;
+                }
+                
+                return Stack(
+                  children: [
+                    // Mapa siempre visible, incluso si hay error
+                    MapCanvas(
+                      floor: widget.floor,
+                      svgAssetPath: _getSvgAssetPath(widget.floor),
+                      pathNodes: _pathNodes ?? [],
+                      entranceNode: _entranceNode,
+                      showNodes: _showNodes,
                               sensorService: _sensorService,
-                              onControllerReady: (controller) {
-                                _mapTransformationController = controller;
-                                controller.addListener(() {
-                                  if (mounted) {
-                                    setState(() {
-                                      _currentTransform = controller.value;
-                                    });
-                                  }
-                                });
-                              },
                             ),
-                            // Marcador del usuario (igual que código antiguo - líneas 712-741)
-                            if (_entranceNode != null)
-                              Positioned(
-                                left: markerScreenX! - 15, // Centrar el marcador (30/2 = 15)
-                                top: markerScreenY! - 15,
-                                child: Transform.rotate(
-                                  angle: _sensorService.heading,
-                                  child: Container(
-                                    width: 30,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF1B38E3), // Azul del tema
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 3,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.3),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
+                    // Marcador del usuario (igual que código antiguo - líneas 712-741)
+                    if (_entranceNode != null && markerScreenX != null && markerScreenY != null)
+                      Positioned(
+                        left: markerScreenX - 15, // Centrar el marcador (30/2 = 15)
+                        top: markerScreenY - 15,
+                        child: Transform.rotate(
+                          angle: _sensorService.heading,
+                          child: Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1B38E3), // Azul del tema
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 3,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.3),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: CustomPaint(
+                              painter: _UserMarkerPainter(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    // Toggle para mostrar/ocultar nodos
+                    Positioned(
+                      top: 16,
+                      left: 16,
+                      child: FloatingActionButton.small(
+                        onPressed: () {
+                          setState(() {
+                            _showNodes = !_showNodes;
+                          });
+                        },
+                        backgroundColor: AppStyles.primaryColor,
+                        child: Icon(
+                          _showNodes ? Icons.visibility : Icons.visibility_off,
+                          color: AppStyles.textOnDark,
+                        ),
+                      ),
+                    ),
+                    // Botón para mostrar foto del destino
+                    if (_pathNodes != null && _pathNodes!.isNotEmpty)
+                      Positioned(
+                        bottom: 16,
+                        right: 16,
+                        child: FloatingActionButton(
+                          onPressed: _showDestinationPhoto,
+                          backgroundColor: AppStyles.primaryColor,
+                          child: const Icon(
+                            Icons.photo,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    // Mensaje de error superpuesto (si hay error)
+                    if (_errorMessage != null)
+                      Positioned(
+                        bottom: 16,
+                        left: 16,
+                        right: 16,
+                        child: Material(
+                          elevation: 8,
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.white,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.error_outline,
+                                      color: AppStyles.errorColor,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Expanded(
+                                      child: Text(
+                                        'Error al calcular la ruta',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppStyles.textPrimary,
                                         ),
-                                      ],
+                                      ),
                                     ),
-                                    child: CustomPaint(
-                                      painter: _UserMarkerPainter(),
+                                    IconButton(
+                                      icon: const Icon(Icons.close),
+                                      onPressed: () {
+                                        setState(() {
+                                          _errorMessage = null;
+                                        });
+                                      },
                                     ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _errorMessage!,
+                                  textAlign: TextAlign.left,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppStyles.textSecondary,
                                   ),
                                 ),
-                              ),
-                            // Toggle para mostrar/ocultar nodos
-                            Positioned(
-                              top: 16,
-                              left: 16,
-                              child: FloatingActionButton.small(
-                                onPressed: () {
-                                  setState(() {
-                                    _showNodes = !_showNodes;
-                                  });
-                                },
-                                backgroundColor: AppStyles.primaryColor,
-                                child: Icon(
-                                  _showNodes ? Icons.visibility : Icons.visibility_off,
-                                  color: AppStyles.textOnDark,
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: _loadRoute,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppStyles.primaryColor,
+                                      foregroundColor: AppStyles.textOnDark,
+                                    ),
+                                    child: const Text('Reintentar'),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        );
-                      },
-                    )
-                  : const Center(
-                      child: Text('No se encontró una ruta'),
-                    ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
     );
   }
 }

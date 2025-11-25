@@ -3,6 +3,7 @@ import '../../domain/entities/map_edge.dart';
 import '../../domain/entities/map_floor.dart';
 import '../../domain/repositories/navigation_repository.dart';
 import '../config/graph_edges_config.dart';
+import '../repositories/navigation_repository_impl.dart';
 
 /// Servicio para inicializar los edges del grafo basándose en configuración manual
 /// 
@@ -44,9 +45,8 @@ class GraphInitializer {
     final edgesConfig = GraphEdgesConfig.getEdgesForFloor(floor);
 
     // Generar edges desde la configuración
-    // La configuración ya incluye edges bidireccionales explícitos
     final edges = <MapEdge>[];
-    final processedEdges = <String>{}; // Para evitar duplicados exactos
+    final processedEdges = <String>{};
 
     for (final edgeConfig in edgesConfig) {
       if (edgeConfig.length != 2) continue;
@@ -56,7 +56,6 @@ class GraphInitializer {
 
       // Verificar que ambos nodos existen
       if (!nodeMap.containsKey(fromId) || !nodeMap.containsKey(toId)) {
-        // Continuar sin lanzar error, algunos nodos pueden no existir en el SVG
         continue;
       }
 
@@ -83,18 +82,23 @@ class GraphInitializer {
       }
     }
 
-    // Obtener el grafo actual del piso
-    final currentFloor = await repository.getFloorGraph(floor);
-
-    // Crear nuevo MapFloor con los nodos existentes y los nuevos edges
-    final updatedFloor = MapFloor(
-      floor: floor,
-      nodes: currentFloor.nodes,
-      edges: edges,
-    );
-
-    // Guardar en Firestore (esto reemplazará los edges existentes)
-    await repository.saveFloorGraph(updatedFloor);
+    // Eliminar edges antiguos y guardar los nuevos
+    if (repository is NavigationRepositoryImpl) {
+      await (repository as NavigationRepositoryImpl).deleteAllEdgesForFloor(floor);
+      await (repository as NavigationRepositoryImpl).saveEdgesForFloor(
+        floor,
+        edges,
+        deleteExisting: false,
+      );
+    } else {
+      final currentFloor = await repository.getFloorGraph(floor);
+      final updatedFloor = MapFloor(
+        floor: floor,
+        nodes: currentFloor.nodes,
+        edges: edges,
+      );
+      await repository.saveFloorGraph(updatedFloor);
+    }
 
     return edges.length;
   }

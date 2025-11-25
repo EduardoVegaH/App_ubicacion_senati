@@ -29,8 +29,7 @@ void _initializeNavigationInBackground() {
       final autoInitializer = di.sl<NavigationAutoInitializer>();
       await autoInitializer.initializeIfNeeded();
     } catch (e) {
-      print('⚠️ Error en inicialización automática de navegación: $e');
-      // No lanzar error, solo loguear - la app debe seguir funcionando
+      // Error silencioso - la app debe seguir funcionando
     }
   });
 }

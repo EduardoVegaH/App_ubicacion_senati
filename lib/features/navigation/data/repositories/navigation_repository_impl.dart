@@ -39,5 +39,23 @@ class NavigationRepositoryImpl implements NavigationRepository {
   Future<void> saveFloorGraphReplacing(MapFloor floor) async {
     return await firestoreDataSource.saveFloorGraph(floor, replaceExisting: true);
   }
+
+  /// Elimina todos los edges de un piso
+  Future<void> deleteAllEdgesForFloor(int floor) async {
+    return await firestoreDataSource.deleteAllEdgesForFloor(floor);
+  }
+
+  /// Guarda solo los edges de un piso (sin tocar los nodos)
+  Future<void> saveEdgesForFloor(
+    int floor,
+    List<MapEdge> edges, {
+    bool deleteExisting = true,
+  }) async {
+    return await firestoreDataSource.saveEdgesForFloor(
+      floor,
+      edges,
+      deleteExisting: deleteExisting,
+    );
+  }
 }
 

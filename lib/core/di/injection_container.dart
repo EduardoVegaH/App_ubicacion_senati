@@ -221,10 +221,8 @@ Future<void> init() async {
   // 🚀 INICIALIZAR SERVICIOS GLOBALES
   // ============================================
   
-  // Iniciar el sensor inmediatamente para que esté listo antes de entrar al mapa
   final sensorService = sl<SensorService>();
   sensorService.start();
-  print('✅ SensorService iniciado globalmente - posX=${sensorService.posX}, posY=${sensorService.posY}, heading=${sensorService.heading}');
 
 }
 

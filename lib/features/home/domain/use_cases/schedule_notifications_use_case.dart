@@ -16,10 +16,7 @@ class ScheduleNotificationsUseCase {
   Future<void> call(List<CourseEntity> courses) async {
     try {
       await Future.delayed(const Duration(seconds: 2));
-      final hasPermissions = await _notificationDataSource.checkPermissions();
-      if (!hasPermissions) {
-        print('⚠️ ADVERTENCIA: Las notificaciones no están habilitadas');
-      }
+      await _notificationDataSource.checkPermissions();
 
       // Programar notificación de prueba
       await _notificationDataSource.scheduleTestNotification(10);

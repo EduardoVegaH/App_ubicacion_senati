@@ -145,7 +145,6 @@ class SensorService {
     
     _isMagCalibrated = true;
     _autoRecalibrationActive = false;
-    print("✅ Sistema 2: Recalibración AUTOMÁTICA completada (Sistema 1 corregido)");
   }
 
   double heading = 0;
@@ -192,7 +191,6 @@ class SensorService {
       _autoRecalibrationData.clear();
       _calibrationStartTime = DateTime.now();
       _fastCalibrationMode = false;
-      print("🔄 Sistema 2: Recalibración AUTOMÁTICA activada (corrigiendo Sistema 1)");
     }
   }
   
@@ -256,9 +254,8 @@ class SensorService {
       _longitude = position.longitude;
       _magneticDeclination = _calculateMagneticDeclination(_latitude!, _longitude!);
       _lastLocationUpdate = DateTime.now();
-      print("📍 Ubicación actualizada: lat=${_latitude!.toStringAsFixed(6)}, lon=${_longitude!.toStringAsFixed(6)}, declinación=${(_magneticDeclination * 180 / math.pi).toStringAsFixed(2)}°");
     } catch (e) {
-      print("⚠️ Error al obtener ubicación: $e");
+      print("Error al obtener ubicación: $e");
     }
   }
   
@@ -368,7 +365,6 @@ class SensorService {
     _notify();
 
     String movementType = _isRunning ? "🏃 CORRIENDO" : "🚶 CAMINANDO";
-    print("$movementType → x:${posX.toStringAsFixed(2)}  y:${posY.toStringAsFixed(2)}  heading:${(heading * 180 / math.pi).toStringAsFixed(1)}°  paso:${stepLength.toStringAsFixed(2)}m");
   }
 
   // Iniciar sensores
@@ -454,7 +450,6 @@ class SensorService {
       }
       
       if (gyroMagnitude > _gyroMagnitudeThreshold) {
-        print("🔄 Giro brusco detectado (${gyroMagnitude.toStringAsFixed(2)} rad/s) - Recalibrando INSTANTÁNEAMENTE");
         
         _needsCalibration = true;
         _lastCalibrationTime = DateTime(1970);

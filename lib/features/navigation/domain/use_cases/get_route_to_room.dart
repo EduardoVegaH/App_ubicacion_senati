@@ -55,20 +55,6 @@ class GetRouteToRoomUseCase {
       return [fromNode];
     }
 
-    // Ejecutar algoritmo A*
-    print('🔍 Ejecutando A*: ${mapFloor.nodes.length} nodos, ${mapFloor.edges.length} edges');
-    print('   Desde: $fromNodeId (${fromNode.x.toStringAsFixed(1)}, ${fromNode.y.toStringAsFixed(1)})');
-    print('   Hasta: $toNodeId');
-    
-    // Verificar que hay edges conectados al nodo de inicio
-    final edgesFromStart = mapFloor.edges.where((e) => 
-      e.fromId == fromNodeId || e.toId == fromNodeId
-    ).toList();
-    print('   Edges conectados al nodo de inicio: ${edgesFromStart.length}');
-    if (edgesFromStart.isNotEmpty) {
-      print('   Primeros edges: ${edgesFromStart.take(3).map((e) => '${e.fromId}->${e.toId}').join(", ")}');
-    }
-    
     final path = AStarAlgorithm.findPath(
       nodes: mapFloor.nodes,
       edges: mapFloor.edges,
@@ -77,21 +63,11 @@ class GetRouteToRoomUseCase {
     );
 
     if (path.isEmpty) {
-      print('❌ A* no encontró ruta. Verificando conectividad...');
-      // Verificar si hay algún camino posible
-      final edgesToGoal = mapFloor.edges.where((e) => 
-        e.fromId == toNodeId || e.toId == toNodeId
-      ).toList();
-      print('   Edges conectados al nodo destino: ${edgesToGoal.length}');
-      
       throw RouteNotFoundException(
         'No se encontró una ruta desde $fromNodeId hasta $toNodeId en el piso $floor. '
         'Verifica que los edges estén inicializados correctamente.',
       );
     }
-
-    print('✅ Ruta encontrada con ${path.length} nodos');
-    print('   Ruta: ${path.map((n) => n.id).join(" -> ")}');
     
     return path;
   }

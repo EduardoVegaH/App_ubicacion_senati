@@ -25,7 +25,6 @@ class LoadStudentWithCoursesUseCase {
     List<CourseEntity> coursesToUse = student.coursesToday;
     
     if (coursesToUse.isEmpty) {
-      print('⚠️ No hay cursos en Firebase, usando cursos de ejemplo');
       coursesToUse = _getExampleCourses();
     }
     

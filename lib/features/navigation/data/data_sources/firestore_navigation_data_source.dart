@@ -31,21 +31,15 @@ class FirestoreNavigationDataSource {
 
     // Si se solicita reemplazar, eliminar nodos y edges existentes
     if (replaceExisting) {
-      print('🗑️  Eliminando nodos y edges existentes del piso ${floor.floor}...');
-      
-      // Obtener todos los nodos existentes y eliminarlos
       final existingNodesSnapshot = await nodesCollection.get();
       for (final doc in existingNodesSnapshot.docs) {
         batch.delete(doc.reference);
       }
       
-      // Obtener todos los edges existentes y eliminarlos
       final existingEdgesSnapshot = await edgesCollection.get();
       for (final doc in existingEdgesSnapshot.docs) {
         batch.delete(doc.reference);
       }
-      
-      print('🗑️  Eliminados ${existingNodesSnapshot.docs.length} nodos y ${existingEdgesSnapshot.docs.length} edges');
     }
 
     // Guardar nodos
@@ -65,7 +59,6 @@ class FirestoreNavigationDataSource {
     }
 
     await batch.commit();
-    print('✅ Guardados ${floor.nodes.length} nodos y ${floor.edges.length} edges en Firestore');
   }
 
   /// Obtiene el grafo completo de un piso desde Firestore
@@ -135,6 +128,54 @@ class FirestoreNavigationDataSource {
     return edgesSnapshot.docs
         .map((doc) => MapEdgeModel.fromFirestore(doc).toEntity())
         .toList();
+  }
+
+  /// Elimina TODOS los edges de un piso específico
+  Future<void> deleteAllEdgesForFloor(int floor) async {
+    final edgesCollection = _db
+        .collection('mapas')
+        .doc('piso_$floor')
+        .collection('edges');
+
+    final edgesSnapshot = await edgesCollection.get();
+    if (edgesSnapshot.docs.isEmpty) return;
+
+    final batch = _db.batch();
+    for (final doc in edgesSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    
+    await batch.commit();
+  }
+
+  /// Guarda solo los edges de un piso (sin tocar los nodos)
+  Future<void> saveEdgesForFloor(
+    int floor,
+    List<MapEdge> edges, {
+    bool deleteExisting = true,
+  }) async {
+    final edgesCollection = _db
+        .collection('mapas')
+        .doc('piso_$floor')
+        .collection('edges');
+
+    final batch = _db.batch();
+
+    if (deleteExisting) {
+      final existingEdgesSnapshot = await edgesCollection.get();
+      for (final doc in existingEdgesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+    }
+
+    for (final edge in edges) {
+      final edgeModel = MapEdgeModel.fromEntity(edge);
+      final edgeId = '${edge.fromId}_${edge.toId}';
+      final edgeRef = edgesCollection.doc(edgeId);
+      batch.set(edgeRef, edgeModel.toFirestore());
+    }
+
+    await batch.commit();
   }
 }
 

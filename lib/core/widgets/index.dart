@@ -16,3 +16,4 @@ export 'status_badge/index.dart';
 export 'primary_button/index.dart';
 export 'floating_chatbot/floating_chatbot.dart';
 export 'tower_map_viewer/tower_map_viewer.dart';
+export 'destination_photo_viewer/index.dart';

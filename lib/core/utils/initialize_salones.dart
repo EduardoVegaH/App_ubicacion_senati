@@ -11,12 +11,8 @@ class SalonesInitializer {
   /// Crea la colección 'salones' con todos los salones del campus SENATI
   Future<void> initializeSalones() async {
     try {
-      print('🏗️ Inicializando salones en Firebase...');
-
-      // Verificar si ya existen salones
       final snapshot = await _db.collection('salones').limit(1).get();
       if (snapshot.docs.isNotEmpty) {
-        print('⚠️ La colección "salones" ya contiene datos. Usa clearSalones() primero si deseas reinicializar.');
         return;
       }
 
@@ -34,15 +30,12 @@ class SalonesInitializer {
             'updatedAt': FieldValue.serverTimestamp(),
           });
           creados++;
-          print('✅ Salón creado: ${salon['id']}');
         } catch (e) {
-          print('❌ Error al crear salón ${salon['id']}: $e');
+          print('Error al crear salón ${salon['id']}: $e');
         }
       }
-
-      print('✅ Inicialización completada: $creados salones creados');
     } catch (e) {
-      print('❌ Error al inicializar salones: $e');
+      print('Error al inicializar salones: $e');
       rethrow;
     }
   }
@@ -58,9 +51,8 @@ class SalonesInitializer {
       }
 
       await batch.commit();
-      print('✅ Todos los salones han sido eliminados');
     } catch (e) {
-      print('❌ Error al limpiar salones: $e');
+      print('Error al limpiar salones: $e');
       rethrow;
     }
   }
