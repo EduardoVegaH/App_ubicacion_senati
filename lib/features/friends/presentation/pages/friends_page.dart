@@ -1,16 +1,14 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../../app/styles/app_styles.dart';
 import '../../../../../app/styles/text_styles.dart';
 import '../../../../core/widgets/search_bar/search_bar.dart' as custom;
 import '../../../../core/widgets/empty_states/index.dart';
 import '../../../../core/di/injection_container.dart';
-import '../../domain/index.dart';
-import '../../data/models/friend_model.dart';
+import '../controllers/friends_controller.dart';
 import '../widgets/friend_card.dart';
 import '../widgets/search_result_card.dart';
 
-/// Página de amigos (refactorizada)
+/// Página de amigos (refactorizada con controller)
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
 
@@ -19,91 +17,51 @@ class FriendsPage extends StatefulWidget {
 }
 
 class _FriendsPageState extends State<FriendsPage> {
-  late final GetFriendsUseCase _getFriendsUseCase;
-  late final SearchStudentsUseCase _searchStudentsUseCase;
-  late final AddFriendUseCase _addFriendUseCase;
-  late final RemoveFriendUseCase _removeFriendUseCase;
-  
+  late final FriendsController _controller;
   final TextEditingController _searchController = TextEditingController();
-  List<FriendModel> _friends = [];
-  List<FriendModel> _filteredFriends = [];
-  bool _loading = true;
-  List<FriendModel> _searchResults = [];
-  final Map<String, bool> _isFriendMap = {}; // Mapa para verificar si es amigo
-  final Map<String, bool> _showMap = {};
-  Timer? _searchDebounceTimer; // Timer para debounce de búsqueda
 
   @override
   void initState() {
     super.initState();
-    _getFriendsUseCase = sl<GetFriendsUseCase>();
-    _searchStudentsUseCase = sl<SearchStudentsUseCase>();
-    _addFriendUseCase = sl<AddFriendUseCase>();
-    _loadFriends();
+    _controller = sl<FriendsController>();
+    _controller.addListener(_onControllerChanged);
+    _controller.loadFriends();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _searchDebounceTimer?.cancel();
+    _controller.removeListener(_onControllerChanged);
+    _controller.dispose();
     super.dispose();
   }
 
-  Future<void> _loadFriends() async {
-    setState(() => _loading = true);
-    try {
-      final friends = await _getFriendsUseCase.call();
-      setState(() {
-        _friends = friends.map((e) => FriendModel(
-          uid: e.uid,
-          name: e.name,
-          id: e.id,
-          photoUrl: e.photoUrl,
-          status: e.status,
-          latitude: e.latitude,
-          longitude: e.longitude,
-          lastUpdate: e.lastUpdate,
-        )).toList();
-        _filteredFriends = _friends;
-        _loading = false;
-      });
-    } catch (e) {
-      setState(() => _loading = false);
-      if (mounted) {
+  void _onControllerChanged() {
+    if (mounted) {
+      setState(() {});
+      
+      // Mostrar mensajes de error si existen
+      if (_controller.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar amigos: $e'), backgroundColor: AppStyles.errorColor),
+          SnackBar(
+            content: Text(_controller.error!),
+            backgroundColor: AppStyles.errorColor,
+          ),
         );
       }
     }
   }
 
-  /// Búsqueda cuando se presiona Enter (sin debounce)
-  Future<void> _searchStudent() async {
-    _searchDebounceTimer?.cancel(); // Cancelar búsqueda pendiente
-    await _performSearch(_searchController.text.trim());
-  }
-
-  Future<void> _addFriend(FriendModel friend) async {
-    final success = await _addFriendUseCase.call(friend.uid);
-    if (success && mounted) {
+  Future<void> _handleAddFriend(friend) async {
+    final success = await _controller.addFriend(friend);
+    if (mounted && success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Amigo agregado exitosamente'),
           backgroundColor: AppStyles.successColor,
         ),
       );
-      // Actualizar estado: ahora es amigo
-      setState(() {
-        _isFriendMap[friend.uid] = true;
-        // Si está en los resultados de búsqueda, agregarlo a la lista filtrada
-        if (_searchResults.any((f) => f.uid == friend.uid)) {
-          if (!_filteredFriends.any((f) => f.uid == friend.uid)) {
-            _filteredFriends.add(friend);
-          }
-        }
-      });
-      _loadFriends(); // Recargar lista completa
-    } else if (mounted) {
+    } else if (mounted && !success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Error al agregar amigo'),
@@ -113,24 +71,16 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
-  Future<void> _removeFriend(String friendUid) async {
-    final success = await _removeFriendUseCase.call(friendUid);
-    if (success && mounted) {
+  Future<void> _handleRemoveFriend(String friendUid) async {
+    final success = await _controller.removeFriend(friendUid);
+    if (mounted && success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Amigo eliminado'),
           backgroundColor: AppStyles.successColor,
         ),
       );
-      // Actualizar estado: ya no es amigo
-      setState(() {
-        _isFriendMap[friendUid] = false;
-        _friends.removeWhere((f) => f.uid == friendUid);
-        _filteredFriends.removeWhere((f) => f.uid == friendUid);
-        // Si está en los resultados de búsqueda, mantenerlo ahí pero marcado como no amigo
-      });
-      _loadFriends(); // Recargar lista completa
-    } else if (mounted) {
+    } else if (mounted && !success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Error al eliminar amigo'),
@@ -140,92 +90,17 @@ class _FriendsPageState extends State<FriendsPage> {
     }
   }
 
-  /// Buscar en Firebase mientras el usuario escribe (con debounce)
-  void _searchWhileTyping(String query) {
-    // Cancelar búsqueda anterior si existe
-    _searchDebounceTimer?.cancel();
-    
-    if (query.isEmpty) {
-      setState(() {
-        _searchResults = [];
-        _isFriendMap.clear();
-        _filteredFriends = _friends;
-      });
-      return;
-    }
-
-    // Esperar 500ms después de que el usuario deje de escribir
-    _searchDebounceTimer = Timer(const Duration(milliseconds: 500), () {
-      _performSearch(query);
-    });
+  void _handleSearchSubmitted() {
+    _controller.performSearch(_searchController.text.trim());
   }
 
-  /// Realizar búsqueda en Firebase (delega la lógica al use case)
-  Future<void> _performSearch(String query) async {
-    if (query.trim().isEmpty) {
-      setState(() {
-        _searchResults = [];
-        _isFriendMap.clear();
-        _filteredFriends = _friends;
-      });
-      return;
-    }
+  void _handleSearchChanged(String value) {
+    _controller.searchWhileTyping(value);
+  }
 
-    setState(() {
-      _searchResults = [];
-      _isFriendMap.clear();
-    });
-
-    try {
-      // Delegar toda la lógica de búsqueda al use case
-      final searchResults = await _searchStudentsUseCase.call(query);
-      
-      if (searchResults.isEmpty) {
-        setState(() {
-          _searchResults = [];
-        });
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('No se encontró ningún estudiante'),
-              backgroundColor: AppStyles.warningColor,
-            ),
-          );
-        }
-        return;
-      }
-
-      // Convertir resultados del use case a modelos para la UI
-      final results = <FriendModel>[];
-      for (var searchResult in searchResults) {
-        final friend = FriendModel(
-          uid: searchResult.friend.uid,
-          name: searchResult.friend.name,
-          id: searchResult.friend.id,
-          photoUrl: searchResult.friend.photoUrl,
-          status: searchResult.friend.status,
-          latitude: searchResult.friend.latitude,
-          longitude: searchResult.friend.longitude,
-          lastUpdate: searchResult.friend.lastUpdate,
-        );
-        results.add(friend);
-        _isFriendMap[friend.uid] = searchResult.isFriend;
-      }
-      
-      setState(() {
-        _searchResults = results;
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al buscar: $e'),
-            backgroundColor: AppStyles.errorColor,
-          ),
-        );
-      }
-    }
+  void _handleSearchClear() {
+    _searchController.clear();
+    _controller.clearSearch();
   }
 
   @override
@@ -258,28 +133,19 @@ class _FriendsPageState extends State<FriendsPage> {
                 custom.CustomSearchBar(
                   controller: _searchController,
                   hintText: 'Buscar por ID o nombre',
-                    onChanged: (value) {
-                      // Buscar en Firebase mientras escribe (con debounce)
-                      _searchWhileTyping(value);
-                    },
-                    onSubmitted: _searchStudent,
-                    onClear: () {
-                      setState(() {
-                        _searchResults = [];
-                        _isFriendMap.clear();
-                        _filteredFriends = _friends;
-                      });
-                    },
+                  onChanged: _handleSearchChanged,
+                  onSubmitted: _handleSearchSubmitted,
+                  onClear: _handleSearchClear,
                 ),
-                if (_searchResults.isNotEmpty) ...[
+                if (_controller.hasSearchResults) ...[
                   const SizedBox(height: 16),
-                  ..._searchResults.map((friend) => Padding(
+                  ..._controller.searchResults.map((friend) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: SearchResultCard(
                       friend: friend,
-                      isFriend: _isFriendMap[friend.uid] ?? false,
-                      onAdd: () => _addFriend(friend),
-                      onRemove: () => _removeFriend(friend.uid),
+                      isFriend: _controller.isFriend(friend.uid),
+                      onAdd: () => _handleAddFriend(friend),
+                      onRemove: () => _handleRemoveFriend(friend.uid),
                       isLargePhone: isLargePhone,
                       isTablet: isTablet,
                     ),
@@ -289,9 +155,9 @@ class _FriendsPageState extends State<FriendsPage> {
             ),
           ),
           Expanded(
-            child: _loading
+            child: _controller.loading
                 ? const Center(child: CircularProgressIndicator())
-                : _friends.isEmpty && _searchResults.isEmpty
+                : !_controller.hasFriends && !_controller.hasSearchResults
                     ? EmptyState(
                         icon: Icons.people_outline,
                         message: 'No hay estudiantes registrados',
@@ -323,14 +189,14 @@ class _FriendsPageState extends State<FriendsPage> {
           ),
         ),
         // Si hay búsqueda activa, no mostrar la lista de amigos aquí
-        if (_searchResults.isEmpty)
-          ..._friends.map((friend) => Padding(
+        if (!_controller.hasSearchResults)
+          ..._controller.friends.map((friend) => Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: FriendCard(
               friend: friend,
-              showMap: _showMap[friend.uid] ?? false,
-              onToggleMap: () => setState(() => _showMap[friend.uid] = !(_showMap[friend.uid] ?? false)),
-              onDelete: () => _removeFriend(friend.uid),
+              showMap: _controller.showMap(friend.uid),
+              onToggleMap: () => _controller.toggleShowMap(friend.uid),
+              onDelete: () => _handleRemoveFriend(friend.uid),
               isLargePhone: isLargePhone,
               isTablet: isTablet,
             ),
@@ -338,6 +204,4 @@ class _FriendsPageState extends State<FriendsPage> {
       ],
     );
   }
-
 }
-

@@ -24,6 +24,7 @@ import '../../features/friends/domain/use_cases/add_friend_use_case.dart';
 import '../../features/friends/domain/use_cases/get_friends_use_case.dart';
 import '../../features/friends/domain/use_cases/remove_friend_use_case.dart';
 import '../../features/friends/domain/use_cases/search_students_use_case.dart';
+import '../../features/friends/presentation/controllers/friends_controller.dart';
 import '../../features/home/data/data_sources/home_remote_data_source.dart';
 import '../../features/home/data/data_sources/location_data_source.dart';
 import '../../features/home/data/data_sources/notification_data_source.dart';
@@ -138,6 +139,14 @@ Future<void> init() async {
   sl.registerLazySingleton(() => GetFriendsUseCase(sl<FriendsRepository>()));
   sl.registerLazySingleton(() => RemoveFriendUseCase(sl<FriendsRepository>()));
   sl.registerLazySingleton(() => SearchStudentsUseCase(sl<FriendsRepository>()));
+  
+  // Friends Controllers
+  sl.registerFactory(() => FriendsController(
+    getFriendsUseCase: sl<GetFriendsUseCase>(),
+    searchStudentsUseCase: sl<SearchStudentsUseCase>(),
+    addFriendUseCase: sl<AddFriendUseCase>(),
+    removeFriendUseCase: sl<RemoveFriendUseCase>(),
+  ));
 
   // Home
   sl.registerLazySingleton(() => CheckCampusStatusUseCase());
