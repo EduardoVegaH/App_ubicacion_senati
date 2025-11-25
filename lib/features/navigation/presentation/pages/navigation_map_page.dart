@@ -28,11 +28,13 @@ class NavigationMapPage extends StatefulWidget {
 class _NavigationMapPageState extends State<NavigationMapPage> {
   late final GetRouteToRoomUseCase _getRouteToRoomUseCase;
   final SensorService _sensorService = SensorService();
+  TransformationController? _mapTransformationController;
   List<MapNode>? _pathNodes;
   MapNode? _entranceNode; // Nodo de inicio (entrada)
   bool _loading = true;
   String? _errorMessage;
   bool _showNodes = true; // Mostrar nodos azules por defecto para debugging
+  Matrix4 _currentTransform = Matrix4.identity();
 
   @override
   void initState() {
@@ -196,6 +198,52 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
   Widget build(BuildContext context) {
     print('🎨 NavigationMapPage build: loading=$_loading, error=${_errorMessage != null}, pathNodes=${_pathNodes?.length ?? 0}');
     
+    // Calcular posición del marcador del usuario (igual que en la rama antigua)
+    Offset? userMarkerPosition;
+    double? userHeading;
+    if (_entranceNode != null) {
+      // Convertir posX y posY del sensor (en metros) a coordenadas del SVG
+      const double pixelScale = 10.0;
+      final double userSvgX = _entranceNode!.x + (_sensorService.posX * pixelScale);
+      final double userSvgY = _entranceNode!.y + (_sensorService.posY * pixelScale);
+      
+      // Obtener el tamaño de la pantalla
+      final screenSize = MediaQuery.of(context).size;
+      final displayWidth = screenSize.width;
+      final displayHeight = screenSize.height;
+      
+      // Tamaño del SVG basado en el viewBox
+      final svgSize = widget.floor == 1 
+          ? const Size(2808, 1416)
+          : const Size(2117, 1729);
+      
+      // Convertir coordenadas del SVG a coordenadas de pantalla
+      final svgAspectRatio = svgSize.width / svgSize.height;
+      final screenAspectRatio = displayWidth / displayHeight;
+      
+      double scaleX, scaleY, offsetX, offsetY;
+      if (svgAspectRatio > screenAspectRatio) {
+        scaleX = displayWidth / svgSize.width;
+        scaleY = scaleX;
+        offsetX = 0;
+        offsetY = (displayHeight - svgSize.height * scaleY) / 2;
+      } else {
+        scaleY = displayHeight / svgSize.height;
+        scaleX = scaleY;
+        offsetX = (displayWidth - svgSize.width * scaleX) / 2;
+        offsetY = 0;
+      }
+      
+      final double markerScreenX = offsetX + (userSvgX * scaleX);
+      final double markerScreenY = offsetY + (userSvgY * scaleY);
+      
+      userMarkerPosition = Offset(markerScreenX, markerScreenY);
+      userHeading = _sensorService.heading;
+      
+      // Debug: verificar que se está calculando
+      print('📍 Marcador: posX=${_sensorService.posX.toStringAsFixed(2)}, posY=${_sensorService.posY.toStringAsFixed(2)}, screenX=${markerScreenX.toStringAsFixed(1)}, screenY=${markerScreenY.toStringAsFixed(1)}');
+    }
+    
     return Scaffold(
       backgroundColor: AppStyles.surfaceColor,
       appBar: AppBarWithTitle(
@@ -255,8 +303,54 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
                           pathNodes: _pathNodes!,
                           entranceNode: _entranceNode,
                           showNodes: _showNodes,
-                          sensorService: _sensorService,
+                          onControllerReady: (controller) {
+                            _mapTransformationController = controller;
+                            controller.addListener(() {
+                              if (mounted) {
+                                setState(() {
+                                  _currentTransform = controller.value;
+                                });
+                              }
+                            });
+                          },
                         ),
+                        // Marcador del usuario (directamente en el Stack del padre)
+                        if (userMarkerPosition != null && userHeading != null)
+                          IgnorePointer(
+                            key: ValueKey('user_marker_${_sensorService.posX.toStringAsFixed(2)}_${_sensorService.posY.toStringAsFixed(2)}'),
+                            child: Transform(
+                              transform: _mapTransformationController?.value ?? Matrix4.identity(),
+                              child: Positioned(
+                                left: userMarkerPosition!.dx - 15,
+                                top: userMarkerPosition!.dy - 15,
+                                child: Transform.rotate(
+                                  angle: userHeading!,
+                                  child: Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1B38E3),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 3,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.3),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: CustomPaint(
+                                      painter: _UserMarkerPainter(),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         // Toggle para mostrar/ocultar nodos
                         Positioned(
                           top: 16,
@@ -281,5 +375,33 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
                     ),
     );
   }
+}
+
+/// Painter para el marcador del usuario (flecha direccional)
+class _UserMarkerPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    // Dibujar una flecha apuntando hacia arriba (norte = 0°)
+    final path = Path();
+    final center = Offset(size.width / 2, size.height / 2);
+    final arrowSize = size.width * 0.4;
+
+    // Punto superior (punta de la flecha)
+    path.moveTo(center.dx, center.dy - arrowSize);
+    // Punto inferior izquierdo
+    path.lineTo(center.dx - arrowSize * 0.6, center.dy + arrowSize * 0.3);
+    // Punto inferior derecho
+    path.lineTo(center.dx + arrowSize * 0.6, center.dy + arrowSize * 0.3);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 

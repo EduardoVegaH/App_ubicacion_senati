@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../../../core/services/sensor_service.dart';
 import '../../domain/entities/map_node.dart';
 import '../../data/utils/svg_node_hider.dart';
 import 'map_route_painter.dart';
@@ -16,7 +15,9 @@ class MapCanvas extends StatefulWidget {
   final List<MapNode> pathNodes;
   final MapNode? entranceNode;
   final bool showNodes; // Para mostrar/ocultar los nodos azules del SVG
-  final SensorService? sensorService; // Servicio de sensores para el marcador del usuario
+  final Offset? userMarkerPosition; // Posición del marcador del usuario (calculada en el padre)
+  final double? userHeading; // Orientación del marcador del usuario
+  final ValueChanged<TransformationController>? onControllerReady; // Callback para exponer el controller
 
   const MapCanvas({
     super.key,
@@ -25,7 +26,9 @@ class MapCanvas extends StatefulWidget {
     required this.pathNodes,
     this.entranceNode,
     this.showNodes = false, // Por defecto ocultos
-    this.sensorService,
+    this.userMarkerPosition,
+    this.userHeading,
+    this.onControllerReady,
   });
 
   @override
@@ -41,14 +44,10 @@ class _MapCanvasState extends State<MapCanvas> {
   void initState() {
     super.initState();
     _transformationController.addListener(_onTransformChanged);
-    // Escuchar cambios del sensor para actualizar el marcador
-    if (widget.sensorService != null) {
-      widget.sensorService!.onDataChanged = () {
-        if (mounted) {
-          setState(() {});
-        }
-      };
-    }
+    // Exponer el controller al padre
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onControllerReady?.call(_transformationController);
+    });
   }
 
   @override
@@ -86,48 +85,6 @@ class _MapCanvasState extends State<MapCanvas> {
       print('   SVG size: ${svgSize.width}x${svgSize.height}');
     } else {
       print('⚠️ MapCanvas: No hay nodos en la ruta para dibujar');
-    }
-    
-    // Calcular posición del marcador del usuario si hay sensor y nodo de entrada
-    Offset? userMarkerPosition;
-    double? userHeading;
-    if (widget.sensorService != null && widget.entranceNode != null) {
-      // Convertir posX y posY del sensor (en metros) a coordenadas del SVG
-      // Asumimos que 1 metro = aproximadamente 10 píxeles en el SVG
-      const double pixelScale = 10.0;
-      final double userSvgX = widget.entranceNode!.x + (widget.sensorService!.posX * pixelScale);
-      final double userSvgY = widget.entranceNode!.y + (widget.sensorService!.posY * pixelScale);
-      
-      // Obtener el tamaño de la pantalla
-      final screenSize = MediaQuery.of(context).size;
-      final displayWidth = screenSize.width;
-      final displayHeight = screenSize.height;
-      
-      // Convertir coordenadas del SVG a coordenadas de pantalla
-      // El SVG se ajusta con BoxFit.contain, así que necesitamos calcular el factor de escala
-      final svgAspectRatio = svgSize.width / svgSize.height;
-      final screenAspectRatio = displayWidth / displayHeight;
-      
-      double scaleX, scaleY, offsetX, offsetY;
-      if (svgAspectRatio > screenAspectRatio) {
-        // SVG es más ancho, se ajusta al ancho
-        scaleX = displayWidth / svgSize.width;
-        scaleY = scaleX;
-        offsetX = 0;
-        offsetY = (displayHeight - svgSize.height * scaleY) / 2;
-      } else {
-        // SVG es más alto, se ajusta al alto
-        scaleY = displayHeight / svgSize.height;
-        scaleX = scaleY;
-        offsetX = (displayWidth - svgSize.width * scaleX) / 2;
-        offsetY = 0;
-      }
-      
-      final double markerScreenX = offsetX + (userSvgX * scaleX);
-      final double markerScreenY = offsetY + (userSvgY * scaleY);
-      
-      userMarkerPosition = Offset(markerScreenX, markerScreenY);
-      userHeading = widget.sensorService!.heading;
     }
     
     return Stack(
@@ -203,86 +160,6 @@ class _MapCanvasState extends State<MapCanvas> {
             ),
           ),
         
-        // Marcador del usuario
-        if (userMarkerPosition != null && userHeading != null)
-          IgnorePointer(
-            child: AnimatedBuilder(
-              animation: _transformationController,
-              builder: (context, child) {
-                // Recalcular posición dentro del builder para que use valores actuales del sensor
-                Offset? currentMarkerPosition;
-                double? currentHeading;
-                if (widget.sensorService != null && widget.entranceNode != null) {
-                  const double pixelScale = 10.0;
-                  final double userSvgX = widget.entranceNode!.x + (widget.sensorService!.posX * pixelScale);
-                  final double userSvgY = widget.entranceNode!.y + (widget.sensorService!.posY * pixelScale);
-                  
-                  final screenSize = MediaQuery.of(context).size;
-                  final displayWidth = screenSize.width;
-                  final displayHeight = screenSize.height;
-                  
-                  final svgAspectRatio = svgSize.width / svgSize.height;
-                  final screenAspectRatio = displayWidth / displayHeight;
-                  
-                  double scaleX, scaleY, offsetX, offsetY;
-                  if (svgAspectRatio > screenAspectRatio) {
-                    scaleX = displayWidth / svgSize.width;
-                    scaleY = scaleX;
-                    offsetX = 0;
-                    offsetY = (displayHeight - svgSize.height * scaleY) / 2;
-                  } else {
-                    scaleY = displayHeight / svgSize.height;
-                    scaleX = scaleY;
-                    offsetX = (displayWidth - svgSize.width * scaleX) / 2;
-                    offsetY = 0;
-                  }
-                  
-                  final double markerScreenX = offsetX + (userSvgX * scaleX);
-                  final double markerScreenY = offsetY + (userSvgY * scaleY);
-                  
-                  currentMarkerPosition = Offset(markerScreenX, markerScreenY);
-                  currentHeading = widget.sensorService!.heading;
-                }
-                
-                if (currentMarkerPosition == null || currentHeading == null) {
-                  return const SizedBox.shrink();
-                }
-                
-                return Transform(
-                  transform: _transformationController.value,
-                  child: Positioned(
-                    left: currentMarkerPosition!.dx - 15,
-                    top: currentMarkerPosition!.dy - 15,
-                    child: Transform.rotate(
-                      angle: currentHeading!,
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1B38E3),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 3,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: CustomPaint(
-                          painter: _UserMarkerPainter(),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
         
         // Botón de reset zoom (solo visible cuando hay zoom)
         if (_scale > 1.1)
