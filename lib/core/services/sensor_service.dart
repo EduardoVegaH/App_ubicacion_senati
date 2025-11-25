@@ -1,5 +1,3 @@
-//nombre: sensor_service.dart
-
 import 'dart:async';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'dart:math' as math;
@@ -22,17 +20,12 @@ class SensorService {
   List<double> _pitchHistory = [];
   List<double> _rollHistory = [];
   
-  List<double> _headingHistory = [];
-  static const int _headingHistorySize = 10;
-  
-  List<double> _gyroHistory = [];
   DateTime _lastGyroUpdate = DateTime.now();
   double _gyroMagnitudeThreshold = 2.0;
   bool _gyroRotationDetected = false;
   DateTime _lastGyroRotation = DateTime.now();
   static const Duration _gyroRotationTimeout = Duration(milliseconds: 300);
   
-  List<List<double>> _magCalibrationData = [];
   List<List<double>> _continuousCalibrationData = [];
   List<double> _magOffset = [0, 0, 0];
   List<double> _magScale = [1, 1, 1];
@@ -153,24 +146,17 @@ class SensorService {
     _autoRecalibrationActive = false;
     print("✅ Sistema 2: Recalibración AUTOMÁTICA completada (Sistema 1 corregido)");
   }
-  
-  void _calibrateMagnetometer() {
-    _calibrateContinuousMagnetometer();
-  }
 
   double heading = 0;
   double _lastRawHeading = 0;
   DateTime _lastUpdateTime = DateTime.now();
   double _lastHeadingValue = 0;
-  int _stuckCounter = 0;
   
   DateTime _lastCalibrationTime = DateTime.now();
   bool _needsCalibration = false;
   bool _autoRecalibrationActive = false;
   List<List<double>> _autoRecalibrationData = [];
   static const int _autoRecalibrationSamplesNeeded = 120;
-  DateTime _lastAutoRecalibrationCheck = DateTime.now();
-  static const Duration _autoRecalibrationCheckInterval = Duration(seconds: 3);
   
   List<Map<String, dynamic>> _detectedRotations = [];
   static const int _maxRotationHistory = 100;
@@ -257,61 +243,6 @@ class SensorService {
   // Historial de giros
   List<Map<String, dynamic>> getRotationHistory() {
     return List.from(_detectedRotations);
-  }
-  
-  // Información de precisión
-  Map<String, dynamic> getAccuracyInfo() {
-    if (_detectedRotations.isEmpty) {
-      return {
-        'hasData': false,
-        'message': 'No hay giros detectados aún',
-      };
-    }
-    
-    List<double> headingChanges = [];
-    for (int i = 1; i < _detectedRotations.length; i++) {
-      double prevHeading = _detectedRotations[i - 1]['heading'];
-      double currHeading = _detectedRotations[i]['heading'];
-      double diff = (currHeading - prevHeading).abs();
-      if (diff > math.pi) diff = 2 * math.pi - diff;
-      headingChanges.add(diff);
-    }
-    
-    if (headingChanges.isEmpty) {
-      return {
-        'hasData': false,
-        'message': 'Necesita más giros para verificar precisión',
-      };
-    }
-    
-    double avgChange = headingChanges.reduce((a, b) => a + b) / headingChanges.length;
-    double maxChange = headingChanges.reduce((a, b) => a > b ? a : b);
-    double minChange = headingChanges.reduce((a, b) => a < b ? a : b);
-    
-    double variance = headingChanges.map((x) => math.pow(x - avgChange, 2)).reduce((a, b) => a + b) / headingChanges.length;
-    double stdDev = math.sqrt(variance);
-    
-    String accuracyLevel;
-    if (stdDev < 0.1) {
-      accuracyLevel = 'Excelente';
-    } else if (stdDev < 0.2) {
-      accuracyLevel = 'Buena';
-    } else if (stdDev < 0.35) {
-      accuracyLevel = 'Aceptable';
-    } else {
-      accuracyLevel = 'Necesita recalibración';
-    }
-    
-    return {
-      'hasData': true,
-      'totalRotations': _detectedRotations.length,
-      'avgHeadingChange': avgChange * 180 / math.pi,
-      'maxChange': maxChange * 180 / math.pi,
-      'minChange': minChange * 180 / math.pi,
-      'stdDeviation': stdDev * 180 / math.pi,
-      'accuracyLevel': accuracyLevel,
-      'needsRecalibration': stdDev > 0.35,
-    };
   }
   
   // Actualizar ubicación
@@ -452,7 +383,7 @@ class SensorService {
     posY = 0;
     stepLength = 0.6;
     
-    _magCalibrationData.clear();
+    _continuousCalibrationData.clear();
     _isMagCalibrated = false;
     _calibrationStartTime = DateTime.now();
     _magOffset = [0, 0, 0];
@@ -470,10 +401,8 @@ class SensorService {
       double accelMagnitude = math.sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
       
       double walkingThreshold = 10.5;
-      double runningThreshold = 13.0;
       
       bool stepDetected = false;
-      // Detectar cuando z cruza el umbral de abajo hacia arriba
       if (_lastAccelZ <= walkingThreshold && event.z > walkingThreshold) {
         stepDetected = true;
       }
@@ -485,8 +414,6 @@ class SensorService {
         _onStepDetected(accelMagnitude);
       }
     });
-    
-    print('✅ Acelerómetro iniciado - escuchando eventos');
 
     _gyroSub = gyroscopeEventStream().listen((event) {
       gyroscope = [event.x, event.y, event.z];
@@ -532,10 +459,10 @@ class SensorService {
         _lastCalibrationTime = DateTime(1970);
         _isMagCalibrated = false;
         
-        if (_magCalibrationData.length > _calibrationSamplesNeededFast) {
-          _magCalibrationData = _magCalibrationData.sublist(_magCalibrationData.length - _calibrationSamplesNeededFast);
+        if (_continuousCalibrationData.length > _calibrationSamplesNeededFast) {
+          _continuousCalibrationData = _continuousCalibrationData.sublist(_continuousCalibrationData.length - _calibrationSamplesNeededFast);
         } else {
-          _magCalibrationData.clear();
+          _continuousCalibrationData.clear();
         }
         
         _calibrationStartTime = now;
@@ -616,8 +543,6 @@ class SensorService {
           _calibrateAutoRecalibration();
         }
       }
-      
-      _magCalibrationData = List.from(_continuousCalibrationData);
       
       if (_needsCalibration && _fastCalibrationMode) {
         if (_continuousCalibrationData.length >= _calibrationSamplesNeededFast) {

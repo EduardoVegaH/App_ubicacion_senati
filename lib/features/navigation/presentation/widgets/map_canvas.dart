@@ -55,12 +55,15 @@ class _MapCanvasState extends State<MapCanvas> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onControllerReady?.call(_transformationController);
     });
-    // Escuchar cambios del sensor
+    // Escuchar cambios del sensor para actualizar el marcador
     if (widget.sensorService != null) {
       widget.sensorService!.onDataChanged = () {
         if (mounted) {
           setState(() {
-            // Forzar reconstrucción cuando el sensor cambia
+            // Forzar reconstrucción del marcador cuando el sensor detecta:
+            // - Paso detectado (caminar/correr) → actualiza posX, posY
+            // - Giro detectado → actualiza heading
+            // - Calibración completada → mejora precisión del heading
           });
         }
       };

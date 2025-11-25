@@ -41,13 +41,7 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
     super.initState();
     // Usar el sensor singleton global (ya está iniciado)
     _sensorService = sl<SensorService>();
-    _sensorService.onDataChanged = () {
-      if (mounted) {
-        setState(() {
-          // Forzar reconstrucción cuando el sensor cambia
-        });
-      }
-    };
+    // El callback se configura en MapCanvas donde se renderiza el marcador
     print('🚀 NavigationMapPage initState: piso ${widget.floor}, desde ${widget.fromNodeId} hasta ${widget.toNodeId}');
     print('✅ Sensor global usado: posX=${_sensorService.posX}, posY=${_sensorService.posY}, heading=${_sensorService.heading}');
     try {
