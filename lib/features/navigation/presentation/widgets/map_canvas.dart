@@ -55,19 +55,8 @@ class _MapCanvasState extends State<MapCanvas> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onControllerReady?.call(_transformationController);
     });
-    // Escuchar cambios del sensor para actualizar el marcador
-    if (widget.sensorService != null) {
-      widget.sensorService!.onDataChanged = () {
-        if (mounted) {
-          setState(() {
-            // Forzar reconstrucción del marcador cuando el sensor detecta:
-            // - Paso detectado (caminar/correr) → actualiza posX, posY
-            // - Giro detectado → actualiza heading
-            // - Calibración completada → mejora precisión del heading
-          });
-        }
-      };
-    }
+    // El callback del sensor se configura en NavigationMapPage para actualizar el setState del padre
+    // No configurar aquí para evitar sobrescribir el callback
   }
 
   @override
@@ -180,77 +169,7 @@ class _MapCanvasState extends State<MapCanvas> {
             ),
           ),
         
-        // Marcador del usuario (dentro del MapCanvas, sincronizado con zoom/pan)
-        if (widget.sensorService != null && widget.entranceNode != null)
-          IgnorePointer(
-            key: ValueKey('user_marker_${widget.sensorService!.posX.toStringAsFixed(2)}_${widget.sensorService!.posY.toStringAsFixed(2)}_${widget.sensorService!.heading.toStringAsFixed(2)}'),
-            child: Transform(
-              transform: _currentTransform,
-              child: Builder(
-                builder: (context) {
-                  // Calcular posición del marcador (igual que en la rama antigua)
-                  const double pixelScale = 10.8;
-                  final double userSvgX = widget.entranceNode!.x + (widget.sensorService!.posX * pixelScale);
-                  final double userSvgY = widget.entranceNode!.y + (widget.sensorService!.posY * pixelScale);
-                  
-                  // Obtener el tamaño de la pantalla
-                  final screenSize = MediaQuery.of(context).size;
-                  final displayWidth = screenSize.width;
-                  final displayHeight = screenSize.height;
-                  
-                  // Convertir coordenadas del SVG a coordenadas de pantalla
-                  final svgAspectRatio = svgSize.width / svgSize.height;
-                  final screenAspectRatio = displayWidth / displayHeight;
-                  
-                  double scaleX, scaleY, offsetX, offsetY;
-                  if (svgAspectRatio > screenAspectRatio) {
-                    scaleX = displayWidth / svgSize.width;
-                    scaleY = scaleX;
-                    offsetX = 0;
-                    offsetY = (displayHeight - svgSize.height * scaleY) / 2;
-                  } else {
-                    scaleY = displayHeight / svgSize.height;
-                    scaleX = scaleY;
-                    offsetX = (displayWidth - svgSize.width * scaleX) / 2;
-                    offsetY = 0;
-                  }
-                  
-                  final double markerScreenX = offsetX + (userSvgX * scaleX);
-                  final double markerScreenY = offsetY + (userSvgY * scaleY);
-                  
-                  return Positioned(
-                    left: markerScreenX - 15,
-                    top: markerScreenY - 15,
-                    child: Transform.rotate(
-                      angle: widget.sensorService!.heading,
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1B38E3),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 3,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: CustomPaint(
-                          painter: _UserMarkerPainter(),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
+        // El marcador del usuario se renderiza en NavigationMapPage para que se actualice correctamente
         
         // Botón de reset zoom (solo visible cuando hay zoom)
         if (_scale > 1.1)

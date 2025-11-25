@@ -1,3 +1,4 @@
+//Version final (por el momento)
 import 'dart:async';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'dart:math' as math;

@@ -41,7 +41,8 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
     super.initState();
     // Usar el sensor singleton global (ya está iniciado)
     _sensorService = sl<SensorService>();
-    // El callback se configura en MapCanvas donde se renderiza el marcador
+    // Configurar callback para actualizar UI cuando el sensor cambia (igual que código antiguo)
+    _sensorService.onDataChanged = () => setState(() {});
     print('🚀 NavigationMapPage initState: piso ${widget.floor}, desde ${widget.fromNodeId} hasta ${widget.toNodeId}');
     print('✅ Sensor global usado: posX=${_sensorService.posX}, posY=${_sensorService.posY}, heading=${_sensorService.heading}');
     try {
@@ -315,6 +316,37 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
                                 });
                               },
                             ),
+                            // Marcador del usuario (igual que código antiguo - líneas 712-741)
+                            if (_entranceNode != null)
+                              Positioned(
+                                left: markerScreenX! - 15, // Centrar el marcador (30/2 = 15)
+                                top: markerScreenY! - 15,
+                                child: Transform.rotate(
+                                  angle: _sensorService.heading,
+                                  child: Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1B38E3), // Azul del tema
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 3,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.3),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: CustomPaint(
+                                      painter: _UserMarkerPainter(),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             // Toggle para mostrar/ocultar nodos
                             Positioned(
                               top: 16,
