@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../app/styles/app_styles.dart';
 import '../../../../core/widgets/app_bar/index.dart';
+import '../../../../core/services/sensor_service.dart';
 import '../../domain/index.dart';
 import '../../domain/repositories/navigation_repository.dart';
 import '../../domain/use_cases/get_route_to_room.dart';
@@ -26,6 +27,7 @@ class NavigationMapPage extends StatefulWidget {
 
 class _NavigationMapPageState extends State<NavigationMapPage> {
   late final GetRouteToRoomUseCase _getRouteToRoomUseCase;
+  final SensorService _sensorService = SensorService();
   List<MapNode>? _pathNodes;
   MapNode? _entranceNode; // Nodo de inicio (entrada)
   bool _loading = true;
@@ -35,6 +37,8 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
   @override
   void initState() {
     super.initState();
+    _sensorService.start();
+    _sensorService.onDataChanged = () => setState(() {});
     print('🚀 NavigationMapPage initState: piso ${widget.floor}, desde ${widget.fromNodeId} hasta ${widget.toNodeId}');
     try {
       _getRouteToRoomUseCase = sl<GetRouteToRoomUseCase>();
@@ -50,6 +54,12 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
         });
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _sensorService.stop();
+    super.dispose();
   }
 
   Future<void> _loadRoute() async {
@@ -245,6 +255,7 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
                           pathNodes: _pathNodes!,
                           entranceNode: _entranceNode,
                           showNodes: _showNodes,
+                          sensorService: _sensorService,
                         ),
                         // Toggle para mostrar/ocultar nodos
                         Positioned(

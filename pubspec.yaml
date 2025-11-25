@@ -36,6 +36,9 @@ dependencies:
   cloud_firestore: ^5.6.12
   geoflutterfire_plus: 0.0.32
 
+  #Sensores
+  sensors_plus: ^7.0.0
+
   #GPS
   geolocator: ^10.0.1
 
