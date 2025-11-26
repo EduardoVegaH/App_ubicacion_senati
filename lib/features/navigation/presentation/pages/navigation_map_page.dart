@@ -170,7 +170,14 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
       
       // Mejorar el mensaje de error para que sea más útil
       String errorMessage = e.toString();
-      if (e.toString().contains('no encontrado')) {
+      if (e.toString().contains('No se encontró una ruta') || e.toString().contains('RouteNotFoundException')) {
+        errorMessage = '${e.toString()}\n\n'
+            '💡 Posibles soluciones:\n'
+            '1. Verifica que los edges (conexiones) estén configurados en Firestore\n'
+            '2. Asegúrate de que existe un camino entre los nodos\n'
+            '3. Revisa que el grafo del piso ${widget.floor} esté completamente conectado\n'
+            '4. Intenta navegar desde otro punto de entrada';
+      } else if (e.toString().contains('no encontrado')) {
         errorMessage = '${e.toString()}\n\n'
             '💡 Verifica que:\n'
             '1. Los nodos estén inicializados en Firestore\n'
@@ -253,120 +260,44 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
                   ),
                 )
               : _pathNodes != null && _pathNodes!.isNotEmpty
-                  ? LayoutBuilder(
-                      builder: (context, constraints) {
-                        // Dimensiones del SVG original (igual que en la rama antigua)
-                        const double svgWidth = 1412;
-                        const double svgHeight = 2806;
-                        const double pixelScale = 10.8; // Igual que en la rama antigua
-                        
-                        // Calcular el tamaño del SVG renderizado (con BoxFit.contain)
-                        final double widgetWidth = constraints.maxWidth;
-                        final double widgetHeight = constraints.maxHeight;
-                        final double svgAspectRatio = svgWidth / svgHeight;
-                        final double widgetAspectRatio = widgetWidth / widgetHeight;
-                        
-                        double displayWidth;
-                        double displayHeight;
-                        double offsetX = 0;
-                        double offsetY = 0;
-                        
-                        if (svgAspectRatio > widgetAspectRatio) {
-                          // SVG es más ancho, se ajusta al ancho
-                          displayWidth = widgetWidth;
-                          displayHeight = widgetWidth / svgAspectRatio;
-                          offsetY = (widgetHeight - displayHeight) / 2;
-                        } else {
-                          // SVG es más alto, se ajusta a la altura
-                          displayHeight = widgetHeight;
-                          displayWidth = widgetHeight * svgAspectRatio;
-                          offsetX = (widgetWidth - displayWidth) / 2;
-                        }
-                        
-                        // Calcular posición del marcador del usuario (igual que en la rama antigua)
-                        double? markerScreenX;
-                        double? markerScreenY;
-                        if (_entranceNode != null) {
-                          // Convertir posX y posY del sensor (en metros) a coordenadas del SVG
-                          final double userSvgX = _entranceNode!.x + (_sensorService.posX * pixelScale);
-                          final double userSvgY = _entranceNode!.y + (_sensorService.posY * pixelScale);
-                          
-                          // Convertir coordenadas del SVG a coordenadas de pantalla
-                          markerScreenX = offsetX + (userSvgX / svgWidth) * displayWidth;
-                          markerScreenY = offsetY + (userSvgY / svgHeight) * displayHeight;
-                        }
-                        
-                        return Stack(
-                          children: [
-                            MapCanvas(
-                              floor: widget.floor,
-                              svgAssetPath: _getSvgAssetPath(widget.floor),
-                              pathNodes: _pathNodes!,
-                              entranceNode: _entranceNode,
-                              showNodes: _showNodes,
-                              sensorService: _sensorService,
-                              onControllerReady: (controller) {
-                                _mapTransformationController = controller;
-                                controller.addListener(() {
-                                  if (mounted) {
-                                    setState(() {
-                                      _currentTransform = controller.value;
-                                    });
-                                  }
+                  ? Stack(
+                      children: [
+                        MapCanvas(
+                          floor: widget.floor,
+                          svgAssetPath: _getSvgAssetPath(widget.floor),
+                          pathNodes: _pathNodes!,
+                          entranceNode: _entranceNode,
+                          showNodes: _showNodes,
+                          sensorService: _sensorService,
+                          onControllerReady: (controller) {
+                            _mapTransformationController = controller;
+                            controller.addListener(() {
+                              if (mounted) {
+                                setState(() {
+                                  _currentTransform = controller.value;
                                 });
-                              },
+                              }
+                            });
+                          },
+                        ),
+                        // Toggle para mostrar/ocultar nodos
+                        Positioned(
+                          top: 16,
+                          left: 16,
+                          child: FloatingActionButton.small(
+                            onPressed: () {
+                              setState(() {
+                                _showNodes = !_showNodes;
+                              });
+                            },
+                            backgroundColor: AppStyles.primaryColor,
+                            child: Icon(
+                              _showNodes ? Icons.visibility : Icons.visibility_off,
+                              color: AppStyles.textOnDark,
                             ),
-                            // Marcador del usuario (igual que código antiguo - líneas 712-741)
-                            if (_entranceNode != null)
-                              Positioned(
-                                left: markerScreenX! - 15, // Centrar el marcador (30/2 = 15)
-                                top: markerScreenY! - 15,
-                                child: Transform.rotate(
-                                  angle: _sensorService.heading,
-                                  child: Container(
-                                    width: 30,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF1B38E3), // Azul del tema
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 3,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.3),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: CustomPaint(
-                                      painter: _UserMarkerPainter(),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            // Toggle para mostrar/ocultar nodos
-                            Positioned(
-                              top: 16,
-                              left: 16,
-                              child: FloatingActionButton.small(
-                                onPressed: () {
-                                  setState(() {
-                                    _showNodes = !_showNodes;
-                                  });
-                                },
-                                backgroundColor: AppStyles.primaryColor,
-                                child: Icon(
-                                  _showNodes ? Icons.visibility : Icons.visibility_off,
-                                  color: AppStyles.textOnDark,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
+                          ),
+                        ),
+                      ],
                     )
                   : const Center(
                       child: Text('No se encontró una ruta'),
@@ -374,32 +305,3 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
     );
   }
 }
-
-/// Painter para el marcador del usuario (flecha direccional)
-class _UserMarkerPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    // Dibujar una flecha apuntando hacia arriba (norte = 0°)
-    final path = Path();
-    final center = Offset(size.width / 2, size.height / 2);
-    final arrowSize = size.width * 0.4;
-
-    // Punto superior (punta de la flecha)
-    path.moveTo(center.dx, center.dy - arrowSize);
-    // Punto inferior izquierdo
-    path.lineTo(center.dx - arrowSize * 0.6, center.dy + arrowSize * 0.3);
-    // Punto inferior derecho
-    path.lineTo(center.dx + arrowSize * 0.6, center.dy + arrowSize * 0.3);
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-

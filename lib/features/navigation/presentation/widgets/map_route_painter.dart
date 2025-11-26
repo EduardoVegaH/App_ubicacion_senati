@@ -17,10 +17,28 @@ class MapRoutePainter extends CustomPainter {
   
   /// Nodo de inicio (entrada) para resaltar
   final MapNode? entranceNode;
+  
+  /// Coordenadas del marcador del usuario (en coordenadas SVG)
+  final double? markerX;
+  final double? markerY;
+  
+  /// Índice del nodo más cercano (si el marcador está "atrapado" en un nodo)
+  final int? nearestNodeIndex;
+  
+  /// Heading (orientación) del marcador en radianes
+  final double? markerHeading;
+  
+  /// Índice del último segmento completado (para "comerse" la ruta ya recorrida)
+  final int completedSegmentsIndex;
 
   MapRoutePainter({
     required this.pathNodes,
     this.entranceNode,
+    this.markerX,
+    this.markerY,
+    this.nearestNodeIndex,
+    this.markerHeading,
+    this.completedSegmentsIndex = -1, // -1 significa que no se ha completado ningún segmento
     this.routeColor = const Color(0xFF1B38E3),
     this.destinationColor = const Color(0xFF87CEEB), // Celeste claro
     this.routeWidth = 2.5,
@@ -68,14 +86,25 @@ class MapRoutePainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
 
     // Dibujar líneas conectando los nodos en orden (transformando coordenadas)
-    for (int i = 0; i < pathNodes.length - 1; i++) {
+    // Solo dibujar desde el último segmento completado en adelante
+    final startIndex = completedSegmentsIndex + 1;
+    
+    for (int i = startIndex; i < pathNodes.length - 1; i++) {
       final from = pathNodes[i];
       final to = pathNodes[i + 1];
 
       final fromPoint = _transformPoint(from.x, from.y, size);
       final toPoint = _transformPoint(to.x, to.y, size);
 
-      canvas.drawLine(fromPoint, toPoint, routePaint);
+      // Si es el segmento actual donde está el marcador, dibujar solo desde el marcador hasta el siguiente nodo
+      if (i == completedSegmentsIndex + 1 && markerX != null && markerY != null) {
+        final markerPoint = _transformPoint(markerX!, markerY!, size);
+        // Dibujar solo desde el marcador hasta el siguiente nodo
+        canvas.drawLine(markerPoint, toPoint, routePaint);
+      } else {
+        // Dibujar el segmento completo
+        canvas.drawLine(fromPoint, toPoint, routePaint);
+      }
     }
 
     // Dibujar nodo inicial (entrada) en azul si está disponible
@@ -134,12 +163,101 @@ class MapRoutePainter extends CustomPainter {
       final nodePoint = _transformPoint(node.x, node.y, size);
       canvas.drawCircle(nodePoint, 4.0, nodePaint);
     }
+    
+    // Dibujar segmento dinámico desde marcador al nodo más cercano (si existe)
+    if (markerX != null && markerY != null && nearestNodeIndex != null && nearestNodeIndex! >= 0 && nearestNodeIndex! < pathNodes.length) {
+      final nearestNode = pathNodes[nearestNodeIndex!];
+      final markerPoint = _transformPoint(markerX!, markerY!, size);
+      final nearestNodePoint = _transformPoint(nearestNode.x, nearestNode.y, size);
+      
+      // Solo dibujar segmento si el marcador no está exactamente en el nodo
+      final dx = markerX! - nearestNode.x;
+      final dy = markerY! - nearestNode.y;
+      final distanceToNode = (dx * dx + dy * dy);
+      
+      if (distanceToNode > 1.0) { // Si hay una distancia mínima (1 píxel)
+        final dynamicSegmentPaint = Paint()
+          ..color = routeColor.withOpacity(0.5)
+          ..strokeWidth = routeWidth * 0.8
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round;
+        
+        // Dibujar línea discontinua desde marcador al nodo más cercano
+        final dashPattern = <double>[5, 5];
+        final path = Path();
+        path.moveTo(markerPoint.dx, markerPoint.dy);
+        path.lineTo(nearestNodePoint.dx, nearestNodePoint.dy);
+        canvas.drawPath(path, dynamicSegmentPaint);
+      }
+    }
+
+    // Dibujar marcador del usuario
+    if (markerX != null && markerY != null) {
+      final markerPoint = _transformPoint(markerX!, markerY!, size);
+      
+      // Guardar el estado del canvas para poder rotar
+      canvas.save();
+      
+      // Mover el origen al punto del marcador
+      canvas.translate(markerPoint.dx, markerPoint.dy);
+      
+      // Rotar según el heading del sensor (si está disponible)
+      if (markerHeading != null) {
+        canvas.rotate(markerHeading!);
+      }
+      
+      // Dibujar círculo del marcador (fondo azul)
+      final markerBgPaint = Paint()
+        ..color = const Color(0xFF1B38E3)
+        ..style = PaintingStyle.fill;
+      
+      final markerBorderPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0; // Reducido
+      
+      final markerShadowPaint = Paint()
+        ..color = Colors.black.withOpacity(0.3)
+        ..style = PaintingStyle.fill;
+      
+      // Sombra (reducida)
+      canvas.drawCircle(Offset.zero, 9.0, markerShadowPaint);
+      
+      // Círculo de fondo (reducido)
+      canvas.drawCircle(Offset.zero, 8.0, markerBgPaint);
+      canvas.drawCircle(Offset.zero, 8.0, markerBorderPaint);
+      
+      // Dibujar flecha blanca apuntando hacia arriba (norte = 0°)
+      final arrowPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+      
+      final arrowPath = Path();
+      final arrowSize = 4.5; // Reducido
+      
+      // Punto superior (punta de la flecha)
+      arrowPath.moveTo(0, -arrowSize);
+      // Punto inferior izquierdo
+      arrowPath.lineTo(-arrowSize * 0.6, arrowSize * 0.3);
+      // Punto inferior derecho
+      arrowPath.lineTo(arrowSize * 0.6, arrowSize * 0.3);
+      arrowPath.close();
+      
+      canvas.drawPath(arrowPath, arrowPaint);
+      
+      // Restaurar el estado del canvas
+      canvas.restore();
+    }
   }
 
   @override
   bool shouldRepaint(MapRoutePainter oldDelegate) {
     return oldDelegate.pathNodes != pathNodes ||
         oldDelegate.entranceNode != entranceNode ||
+        oldDelegate.markerX != markerX ||
+        oldDelegate.markerY != markerY ||
+        oldDelegate.nearestNodeIndex != nearestNodeIndex ||
+        oldDelegate.markerHeading != markerHeading ||
         oldDelegate.routeColor != routeColor ||
         oldDelegate.destinationColor != destinationColor ||
         oldDelegate.routeWidth != routeWidth ||

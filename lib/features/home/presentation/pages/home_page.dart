@@ -109,7 +109,7 @@ class _HomePageState extends State<HomePage> {
     // Iniciar después de un pequeño delay para asegurar que todas las dependencias estén inicializadas
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
-        _gpsTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+        _gpsTimer = Timer.periodic(const Duration(seconds: 1), (_) {
           if (mounted) _updateLocation();
         });
       }
