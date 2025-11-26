@@ -195,225 +195,121 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
           ? const Center(
               child: CircularProgressIndicator(),
             )
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                // Dimensiones del SVG original (igual que en la rama antigua)
-                const double svgWidth = 1412;
-                const double svgHeight = 2806;
-                const double pixelScale = 10.8; // Igual que en la rama antigua
-                
-                // Calcular el tamaño del SVG renderizado (con BoxFit.contain)
-                final double widgetWidth = constraints.maxWidth;
-                final double widgetHeight = constraints.maxHeight;
-                final double svgAspectRatio = svgWidth / svgHeight;
-                final double widgetAspectRatio = widgetWidth / widgetHeight;
-                
-                double displayWidth;
-                double displayHeight;
-                double offsetX = 0;
-                double offsetY = 0;
-                
-                if (svgAspectRatio > widgetAspectRatio) {
-                  // SVG es más ancho, se ajusta al ancho
-                  displayWidth = widgetWidth;
-                  displayHeight = widgetWidth / svgAspectRatio;
-                  offsetY = (widgetHeight - displayHeight) / 2;
-                } else {
-                  // SVG es más alto, se ajusta a la altura
-                  displayHeight = widgetHeight;
-                  displayWidth = widgetHeight * svgAspectRatio;
-                  offsetX = (widgetWidth - displayWidth) / 2;
-                }
-                
-                // Calcular posición del marcador del usuario (igual que en la rama antigua)
-                double? markerScreenX;
-                double? markerScreenY;
-                if (_entranceNode != null) {
-                  // Convertir posX y posY del sensor (en metros) a coordenadas del SVG
-                  final double userSvgX = _entranceNode!.x + (_sensorService.posX * pixelScale);
-                  final double userSvgY = _entranceNode!.y + (_sensorService.posY * pixelScale);
-                  
-                  // Convertir coordenadas del SVG a coordenadas de pantalla
-                  markerScreenX = offsetX + (userSvgX / svgWidth) * displayWidth;
-                  markerScreenY = offsetY + (userSvgY / svgHeight) * displayHeight;
-                }
-                
-                return Stack(
-                  children: [
-                    // Mapa siempre visible, incluso si hay error
-                    MapCanvas(
-                      floor: widget.floor,
-                      svgAssetPath: _getSvgAssetPath(widget.floor),
-                      pathNodes: _pathNodes ?? [],
-                      entranceNode: _entranceNode,
-                      showNodes: _showNodes,
-                      sensorService: _sensorService,
-                      destinationSalonName: _extractSalonName(),
+          : Stack(
+              children: [
+                // Mapa siempre visible, incluso si hay error
+                MapCanvas(
+                  floor: widget.floor,
+                  svgAssetPath: _getSvgAssetPath(widget.floor),
+                  pathNodes: _pathNodes ?? [],
+                  entranceNode: _entranceNode,
+                  showNodes: _showNodes,
+                  sensorService: _sensorService,
+                  destinationSalonName: _extractSalonName(),
+                ),
+                // Toggle para mostrar/ocultar nodos
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: FloatingActionButton.small(
+                    onPressed: () {
+                      setState(() {
+                        _showNodes = !_showNodes;
+                      });
+                    },
+                    backgroundColor: AppStyles.primaryColor,
+                    child: Icon(
+                      _showNodes ? Icons.visibility : Icons.visibility_off,
+                      color: AppStyles.textOnDark,
                     ),
-                    // Marcador del usuario (igual que código antiguo - líneas 712-741)
-                    if (_entranceNode != null && markerScreenX != null && markerScreenY != null)
-                      Positioned(
-                        left: markerScreenX - 15, // Centrar el marcador (30/2 = 15)
-                        top: markerScreenY - 15,
-                        child: Transform.rotate(
-                          angle: _sensorService.heading,
-                          child: Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1B38E3), // Azul del tema
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 3,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: CustomPaint(
-                              painter: _UserMarkerPainter(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    // Toggle para mostrar/ocultar nodos
-                    Positioned(
-                      top: 16,
-                      left: 16,
-                      child: FloatingActionButton.small(
-                        onPressed: () {
-                          setState(() {
-                            _showNodes = !_showNodes;
-                          });
-                        },
-                        backgroundColor: AppStyles.primaryColor,
-                        child: Icon(
-                          _showNodes ? Icons.visibility : Icons.visibility_off,
-                          color: AppStyles.textOnDark,
-                        ),
+                  ),
+                ),
+                // Botón para mostrar foto del destino
+                if (_pathNodes != null && _pathNodes!.isNotEmpty)
+                  Positioned(
+                    bottom: 16,
+                    right: 16,
+                    child: FloatingActionButton(
+                      onPressed: _showDestinationPhoto,
+                      backgroundColor: AppStyles.primaryColor,
+                      child: const Icon(
+                        Icons.photo,
+                        color: Colors.white,
                       ),
                     ),
-                    // Botón para mostrar foto del destino
-                    if (_pathNodes != null && _pathNodes!.isNotEmpty)
-                      Positioned(
-                        bottom: 16,
-                        right: 16,
-                        child: FloatingActionButton(
-                          onPressed: _showDestinationPhoto,
-                          backgroundColor: AppStyles.primaryColor,
-                          child: const Icon(
-                            Icons.photo,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    // Mensaje de error superpuesto (si hay error)
-                    if (_errorMessage != null)
-                      Positioned(
-                        bottom: 16,
-                        left: 16,
-                        right: 16,
-                        child: Material(
-                          elevation: 8,
-                          borderRadius: BorderRadius.circular(12),
-                          color: Colors.white,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
+                  ),
+                // Mensaje de error superpuesto (si hay error)
+                if (_errorMessage != null)
+                  Positioned(
+                    bottom: 16,
+                    left: 16,
+                    right: 16,
+                    child: Material(
+                      elevation: 8,
+                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
                               children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.error_outline,
-                                      color: AppStyles.errorColor,
-                                      size: 24,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    const Expanded(
-                                      child: Text(
-                                        'Error al calcular la ruta',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppStyles.textPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.close),
-                                      onPressed: () {
-                                        setState(() {
-                                          _errorMessage = null;
-                                        });
-                                      },
-                                    ),
-                                  ],
+                                const Icon(
+                                  Icons.error_outline,
+                                  color: AppStyles.errorColor,
+                                  size: 24,
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _errorMessage!,
-                                  textAlign: TextAlign.left,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppStyles.textSecondary,
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Error al calcular la ruta',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppStyles.textPrimary,
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 12),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    onPressed: _loadRoute,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppStyles.primaryColor,
-                                      foregroundColor: AppStyles.textOnDark,
-                                    ),
-                                    child: const Text('Reintentar'),
-                                  ),
+                                IconButton(
+                                  icon: const Icon(Icons.close),
+                                  onPressed: () {
+                                    setState(() {
+                                      _errorMessage = null;
+                                    });
+                                  },
                                 ),
                               ],
                             ),
-                          ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _errorMessage!,
+                              textAlign: TextAlign.left,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppStyles.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _loadRoute,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppStyles.primaryColor,
+                                  foregroundColor: AppStyles.textOnDark,
+                                ),
+                                child: const Text('Reintentar'),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                  ],
-                );
-              },
+                    ),
+                  ),
+              ],
             ),
     );
   }
-}
-
-/// Painter para el marcador del usuario (flecha direccional)
-class _UserMarkerPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    // Dibujar una flecha apuntando hacia arriba (norte = 0°)
-    final path = Path();
-    final center = Offset(size.width / 2, size.height / 2);
-    final arrowSize = size.width * 0.4;
-
-    // Punto superior (punta de la flecha)
-    path.moveTo(center.dx, center.dy - arrowSize);
-    // Punto inferior izquierdo
-    path.lineTo(center.dx - arrowSize * 0.6, center.dy + arrowSize * 0.3);
-    // Punto inferior derecho
-    path.lineTo(center.dx + arrowSize * 0.6, center.dy + arrowSize * 0.3);
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
