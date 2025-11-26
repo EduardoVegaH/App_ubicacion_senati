@@ -590,11 +590,14 @@ class _MapNavigatorScreenState extends State<MapNavigatorScreen> with TickerProv
                                     entranceNode: _entranceNode, // Punto inicial en azul
                                     destinationNode: _destinationNode,
                                     currentUserNode: _currentUserNode, // Preparado para futuro
-                                    routeColor: const Color(0xFF1B38E3),
+                                    routeColor: const Color(0xFF00C853),
                                     routeStrokeWidth: 2.5, // Línea más delgada
-                                    nodeRadius: 6.0,
-                                    destinationColor: const Color(0xFF87CEEB), // Celeste claro (Sky Blue)
+                                    nodeRadius: 0.5,
+                                    startNodeRadius: 5.0, // Tamaño del punto de inicio
+                                    destinationNodeRadius: 5.0, // Tamaño del punto de destino
+                                    destinationColor: const Color(0xFF00C853), // Celeste claro (Sky Blue)
                                     userNodeColor: Colors.red,
+                                    destinationSalonName: widget.salonNombre ?? widget.objetivoSalonId,
                                   ),
                                 ),
                               ),

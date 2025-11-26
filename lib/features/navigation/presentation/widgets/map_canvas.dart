@@ -18,6 +18,7 @@ class MapCanvas extends StatefulWidget {
   final bool showNodes; // Para mostrar/ocultar los nodos azules del SVG
   final SensorService? sensorService; // Sensor service para el marcador
   final ValueChanged<TransformationController>? onControllerReady; // Callback para exponer el controller
+  final String? destinationSalonName; // Nombre del salón destino para la etiqueta
 
   const MapCanvas({
     super.key,
@@ -28,6 +29,7 @@ class MapCanvas extends StatefulWidget {
     this.showNodes = false, // Por defecto ocultos
     this.sensorService,
     this.onControllerReady,
+    this.destinationSalonName,
   });
 
   @override
@@ -139,10 +141,13 @@ class _MapCanvasState extends State<MapCanvas> {
                         pathNodes: widget.pathNodes,
                         entranceNode: widget.entranceNode,
                         routeColor: const Color(0xFF1B38E3),
-                        routeWidth: 5.0, // Aumentado aún más para mejor visibilidad
-                        destinationColor: const Color(0xFF87CEEB),
+                        routeWidth: 2.5, // Línea más delgada
+                        destinationColor: const Color(0xFF00C853),
                         svgWidth: svgSize.width,
                         svgHeight: svgSize.height,
+                        startNodeRadius: 5.0, // Tamaño del punto de inicio
+                        destinationNodeRadius: 5.0, // Tamaño del punto de destino
+                        destinationSalonName: widget.destinationSalonName,
                       ),
                     ),
                   ),

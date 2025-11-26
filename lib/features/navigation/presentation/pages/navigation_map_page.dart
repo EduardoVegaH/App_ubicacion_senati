@@ -132,6 +132,12 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
     }
   }
 
+  /// Extrae el nombre del salón o área desde el ID del nodo destino
+  String? _extractSalonName() {
+    // Usar el extractor mejorado que maneja tanto salones como áreas
+    return DestinationInfoExtractor.extractAreaOrSalonName(widget.toNodeId);
+  }
+
   void _showDestinationPhoto() {
     if (_pathNodes == null || _pathNodes!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -241,8 +247,9 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
                       pathNodes: _pathNodes ?? [],
                       entranceNode: _entranceNode,
                       showNodes: _showNodes,
-                              sensorService: _sensorService,
-                            ),
+                      sensorService: _sensorService,
+                      destinationSalonName: _extractSalonName(),
+                    ),
                     // Marcador del usuario (igual que código antiguo - líneas 712-741)
                     if (_entranceNode != null && markerScreenX != null && markerScreenY != null)
                       Positioned(

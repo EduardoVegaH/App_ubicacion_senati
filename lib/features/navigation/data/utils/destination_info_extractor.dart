@@ -91,5 +91,46 @@ class DestinationInfoExtractor {
     
     return 'Torre $tower, Piso $floor, Salón $roomNumber';
   }
+
+  /// Extrae el nombre legible de un área o salón desde el ID del nodo
+  /// 
+  /// Maneja tanto salones como áreas comunes (comedor, biblioteca, oficina, etc.)
+  /// Ejemplos:
+  /// - "node_puerta_comedor" -> "Comedor"
+  /// - "node_puerta_biblio" -> "Biblioteca"
+  /// - "node-salon-A-200" -> "Salón A-200"
+  static String? extractAreaOrSalonName(String nodeId) {
+    final nodeIdLower = nodeId.toLowerCase();
+    
+    // Mapear áreas comunes del piso 1
+    final areaMapping = {
+      'comedor': 'Comedor',
+      'biblio': 'Biblioteca',
+      'biblioteca': 'Biblioteca',
+      'oficina': 'Oficina',
+      'escaleras': 'Escaleras',
+      'main01': 'Entrada Principal',
+      'main02': 'Entrada Principal',
+    };
+    
+    // Verificar si es un área común
+    for (final entry in areaMapping.entries) {
+      if (nodeIdLower.contains(entry.key)) {
+        return entry.value;
+      }
+    }
+    
+    // Intentar extraer salón (patrón: salon-A-200 o sal#A200)
+    final tower = extractTower(nodeId);
+    final roomNumber = extractRoomNumber(nodeId);
+    
+    if (tower != null && roomNumber != null) {
+      return 'Salón $tower-$roomNumber';
+    } else if (roomNumber != null) {
+      return 'Salón $roomNumber';
+    }
+    
+    return null;
+  }
 }
 
