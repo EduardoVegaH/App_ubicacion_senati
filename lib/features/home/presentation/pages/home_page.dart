@@ -105,11 +105,14 @@ class _HomePageState extends State<HomePage> {
 
 
   void _startTimers() {
-    // Timer para actualizar ubicación cada 5 segundos
+    // Actualizar ubicación inmediatamente al iniciar
+    _updateLocation();
+    
+    // Timer para actualizar ubicación cada 3 segundos (más frecuente para respuesta más rápida)
     // Iniciar después de un pequeño delay para asegurar que todas las dependencias estén inicializadas
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
-        _gpsTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+        _gpsTimer = Timer.periodic(const Duration(seconds: 3), (_) {
           if (mounted) _updateLocation();
         });
       }

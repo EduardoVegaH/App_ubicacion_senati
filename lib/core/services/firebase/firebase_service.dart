@@ -23,11 +23,16 @@ class FirebaseService {
     final user = _auth.currentUser;
     if (user == null) return null;
 
-    final doc = await _db.collection('usuarios').doc(user.uid).get();
-    if (doc.exists) {
-      return doc.data();
-    } else {
-      return null;
+    try {
+      final doc = await _db.collection('usuarios').doc(user.uid).get();
+      if (doc.exists) {
+        return doc.data();
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print('Error obteniendo datos de Firestore: $e');
+      rethrow; // Re-lanzar el error para que se maneje en niveles superiores
     }
   }
 

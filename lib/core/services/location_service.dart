@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
@@ -24,9 +25,30 @@ class LocationService {
       );
     }
 
-    //3. Obtener la ubicaion real del dispositivo
-    return await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
+    //3. Obtener la ubicaion real del dispositivo con timeout
+    // Intentar obtener ubicación con timeout de 10 segundos
+    try {
+      return await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10), // Timeout de 10 segundos
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          // Si timeout, intentar usar última ubicación conocida
+          throw TimeoutException('Timeout obteniendo ubicación GPS');
+        },
+      );
+    } on TimeoutException {
+      // Si hay timeout, usar última ubicación conocida como fallback
+      final lastPosition = await Geolocator.getLastKnownPosition();
+      if (lastPosition != null) {
+        // Verificar que la última ubicación no sea muy antigua (máximo 30 segundos)
+        final age = DateTime.now().difference(lastPosition.timestamp);
+        if (age.inSeconds < 30) {
+          return lastPosition;
+        }
+      }
+      rethrow;
+    }
   }
 }

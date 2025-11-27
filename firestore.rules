@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Reglas para la colección 'usuarios'
+    // Permitir que los usuarios autenticados lean y escriban su propio documento
+    match /usuarios/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Reglas para la colección 'students'
+    match /students/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Reglas para la colección 'mapas' (navegación) - lectura pública, escritura solo autenticada
+    match /mapas/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    
+    // Reglas para la colección 'salones' - lectura pública, escritura solo autenticada
+    match /salones/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    
+    // Reglas para la colección 'bathrooms' - lectura y escritura para usuarios autenticados
+    match /bathrooms/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    
+    // Reglas para otras colecciones - solo lectura para usuarios autenticados
+    match /{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false; // Por defecto, no permitir escritura
+    }
+  }
+}
+
