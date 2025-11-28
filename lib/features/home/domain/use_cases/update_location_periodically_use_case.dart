@@ -53,7 +53,11 @@ class UpdateLocationPeriodicallyUseCase {
 
       return status;
     } catch (e) {
-      print("Error actualizando ubicación: $e");
+      // No imprimir errores de timeout - el servicio ya maneja el fallback silenciosamente
+      // Solo imprimir errores críticos que no sean timeouts
+      if (!e.toString().contains('TimeoutException')) {
+        print("Error actualizando ubicación: $e");
+      }
       return null;
     }
   }

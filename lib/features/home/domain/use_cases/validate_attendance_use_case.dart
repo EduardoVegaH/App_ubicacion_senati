@@ -11,16 +11,61 @@ class ValidateAttendanceUseCase {
   ValidateAttendanceUseCase(this._getCourseStatusUseCase);
 
   /// Valida el estado de asistencia de un curso
-  AttendanceStatus call({
+  AttendanceStatus? call({
     required CourseEntity course,
     required LocationEntity currentLocation,
     required Map<String, DateTime?> courseFirstEntryTime,
     required Map<String, AttendanceStatus> courseAttendanceStatus,
+    String? campusStatus, // Estado del campus (dentro/fuera)
   }) {
     final now = DateTime.now();
     final startTime = _parseTime(course.startTime);
     final endTime = _parseTime(course.endTime);
 
+    // Caso especial: REDES DE COMPUTADORAS tiene plazo hasta las 7:15 PM
+    if (course.name.toUpperCase().contains('REDES DE COMPUTADORAS')) {
+      final deadlineTime = _parseTime('7:15 PM');
+      if (deadlineTime != null) {
+        if (now.isBefore(deadlineTime)) {
+          // Antes de las 7:15 PM: retornar null para mostrar "El curso comienza a las 7:15"
+          return null;
+        } else {
+          // Después de las 7:15 PM, validar por campusStatus
+          if (campusStatus?.toLowerCase().contains('dentro') == true ||
+              campusStatus?.toLowerCase().contains('presente') == true) {
+            // Si está dentro del campus, es presente (llegó temprano)
+            if (courseFirstEntryTime[course.name] == null) {
+              courseFirstEntryTime[course.name] = now;
+            }
+            return AttendanceStatus.present;
+          } else {
+            // Si no está en el campus, es tardanza (llegó tarde)
+            if (courseFirstEntryTime[course.name] == null) {
+              courseFirstEntryTime[course.name] = now;
+            }
+            return AttendanceStatus.late;
+          }
+        }
+      }
+    }
+
+    // Para todos los demás cursos: aparecer como presente
+    if (courseFirstEntryTime[course.name] == null) {
+      courseFirstEntryTime[course.name] = now;
+    }
+    return AttendanceStatus.present;
+  }
+
+  /// Valida asistencia con lógica normal (para Redes antes de las 7:15 PM)
+  AttendanceStatus _validateNormalAttendance(
+    CourseEntity course,
+    LocationEntity currentLocation,
+    Map<String, DateTime?> courseFirstEntryTime,
+    Map<String, AttendanceStatus> courseAttendanceStatus,
+    DateTime? startTime,
+    DateTime? endTime,
+    DateTime now,
+  ) {
     if (startTime == null || endTime == null) {
       return AttendanceStatus.absent;
     }

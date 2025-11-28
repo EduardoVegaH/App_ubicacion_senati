@@ -63,6 +63,18 @@ class _MapCanvasState extends State<MapCanvas> {
   // Valores iniciales de posX/posY cuando se abre el mapa (para calcular movimiento relativo)
   double? _initialSensorPosX;
   double? _initialSensorPosY;
+  
+  // Control de seguimiento automático de la cámara
+  bool _autoFollowEnabled = true; // Activo solo al inicio
+  bool _hasUserInteracted = false; // Si el usuario ha interactuado manualmente
+  bool _initialZoomDone = false; // Si ya se hizo el zoom inicial
+  
+  // Última posición del marcador para detectar movimiento
+  Offset? _lastMarkerPosition;
+  
+  // Rotación de la cámara para mirar hacia la dirección de la ruta
+  double _cameraRotation = 0.0; // En radianes
+  int _lastRotationNodeIndex = -1; // Último nodo donde se actualizó la rotación
 
   @override
   void initState() {
@@ -104,13 +116,27 @@ class _MapCanvasState extends State<MapCanvas> {
       
       widget.sensorService!.onDataChanged = () {
         if (mounted) {
+          // Recalcular posición del marcador cuando cambian los datos del sensor
+          final newMarkerPos = _calculateMarkerPosition();
           setState(() {
-            // Recalcular posición del marcador cuando cambian los datos del sensor
-            _calculateMarkerPosition();
+            // Actualizar UI
           });
+          // Seguir al marcador automáticamente si está habilitado
+          if (_autoFollowEnabled && !_hasUserInteracted && _initialZoomDone && newMarkerPos != null) {
+            Future.microtask(() => _followMarker());
+          }
         }
       };
     }
+    
+    // Hacer zoom inicial al marcador después de que el widget esté construido
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && !_initialZoomDone) {
+          _zoomToMarker();
+        }
+      });
+    });
   }
 
   @override
@@ -145,10 +171,13 @@ class _MapCanvasState extends State<MapCanvas> {
         _lastSensorPosY = null;
         widget.sensorService!.onDataChanged = () {
           if (mounted) {
+            final newMarkerPos = _calculateMarkerPosition();
             setState(() {
-              // Recalcular posición del marcador cuando cambian los datos del sensor
-              _calculateMarkerPosition();
+              // Actualizar UI
             });
+            if (_autoFollowEnabled && !_hasUserInteracted && _initialZoomDone && newMarkerPos != null) {
+              Future.microtask(() => _followMarker());
+            }
           }
         };
       }
@@ -165,10 +194,13 @@ class _MapCanvasState extends State<MapCanvas> {
       // Asegurar que el callback esté configurado incluso si el sensor no cambió
       widget.sensorService!.onDataChanged = () {
         if (mounted) {
+          final newMarkerPos = _calculateMarkerPosition();
           setState(() {
-            // Recalcular posición del marcador cuando cambian los datos del sensor
-            _calculateMarkerPosition();
+            // Actualizar UI
           });
+          if (_autoFollowEnabled && !_hasUserInteracted && _initialZoomDone && newMarkerPos != null) {
+            Future.microtask(() => _followMarker());
+          }
         }
       };
     }
@@ -199,6 +231,180 @@ class _MapCanvasState extends State<MapCanvas> {
 
   void _resetZoom() {
     _transformationController.value = Matrix4.identity();
+    _hasUserInteracted = false;
+    _autoFollowEnabled = false;
+  }
+  
+  /// Hace zoom al marcador centrándolo en la pantalla
+  void _zoomToMarker() {
+    final markerPos = _calculateMarkerPosition();
+    if (markerPos == null) return;
+    
+    final svgSize = widget.floor == 1 
+        ? const Size(2808, 1416)
+        : const Size(2117, 1729);
+    
+    // Obtener el tamaño del viewport
+    final context = this.context;
+    if (!context.mounted) return;
+    final screenSize = MediaQuery.of(context).size;
+    
+    // Calcular cómo el SVG se renderiza en la pantalla (BoxFit.contain)
+    final scaleX = screenSize.width / svgSize.width;
+    final scaleY = screenSize.height / svgSize.height;
+    final svgToScreenScale = scaleX < scaleY ? scaleX : scaleY;
+    
+    // Calcular offset para centrar el SVG
+    final scaledWidth = svgSize.width * svgToScreenScale;
+    final scaledHeight = svgSize.height * svgToScreenScale;
+    final offsetX = (screenSize.width - scaledWidth) / 2;
+    final offsetY = (screenSize.height - scaledHeight) / 2;
+    
+    // Convertir coordenadas del marcador (SVG) a coordenadas de pantalla
+    final markerScreenX = offsetX + markerPos.dx * svgToScreenScale;
+    final markerScreenY = offsetY + markerPos.dy * svgToScreenScale;
+    
+    // Calcular escala para zoom (similar a Google Maps - zoom moderado)
+    final targetScale = 2.5; // Zoom moderado
+    
+    // Calcular el centro del viewport
+    final centerX = screenSize.width / 2;
+    final centerY = screenSize.height / 2;
+    
+    // Calcular la transformación necesaria para centrar el marcador
+    final rotationMatrix = Matrix4.rotationZ(_cameraRotation);
+    final matrix = Matrix4.identity()
+      ..translate(centerX, centerY)
+      ..scale(targetScale)
+      ..multiply(rotationMatrix)
+      ..translate(-markerScreenX, -markerScreenY);
+    
+    _transformationController.value = matrix;
+    _scale = targetScale;
+    _initialZoomDone = true;
+  }
+  
+  /// Calcula el ángulo de dirección del siguiente segmento de la ruta
+  double? _calculateRouteDirection() {
+    if (widget.pathNodes.isEmpty || _currentNodeIndex < 0) return null;
+    
+    // Si estamos en el último nodo, usar el segmento anterior
+    if (_currentNodeIndex >= widget.pathNodes.length - 1) {
+      if (widget.pathNodes.length < 2) return null;
+      final prevNode = widget.pathNodes[widget.pathNodes.length - 2];
+      final currentNode = widget.pathNodes[widget.pathNodes.length - 1];
+      final dx = currentNode.x - prevNode.x;
+      final dy = currentNode.y - prevNode.y;
+      final angle = math.atan2(dy, dx);
+      return angle - (math.pi / 2);
+    }
+    
+    // Calcular dirección del segmento actual
+    final currentNode = widget.pathNodes[_currentNodeIndex];
+    final nextNode = widget.pathNodes[_currentNodeIndex + 1];
+    
+    final dx = nextNode.x - currentNode.x;
+    final dy = nextNode.y - currentNode.y;
+    
+    final routeAngle = math.atan2(dy, dx);
+    return routeAngle - (math.pi / 2);
+  }
+  
+  /// Actualiza la rotación de la cámara para mirar hacia la dirección de la ruta
+  void _updateCameraRotation() {
+    final routeDirection = _calculateRouteDirection();
+    if (routeDirection == null) return;
+    
+    // Solo actualizar si la dirección cambió significativamente
+    double normalizeAngle(double angle) {
+      while (angle < 0) angle += 2 * math.pi;
+      while (angle >= 2 * math.pi) angle -= 2 * math.pi;
+      return angle;
+    }
+    
+    final normalizedCurrent = normalizeAngle(_cameraRotation);
+    final normalizedTarget = normalizeAngle(routeDirection);
+    
+    double angleDiff = (normalizedTarget - normalizedCurrent).abs();
+    if (angleDiff > math.pi) {
+      angleDiff = 2 * math.pi - angleDiff;
+    }
+    
+    if (angleDiff < 0.087) { // ~5 grados
+      _lastRotationNodeIndex = _currentNodeIndex;
+      return;
+    }
+    
+    _cameraRotation = routeDirection;
+    _lastRotationNodeIndex = _currentNodeIndex;
+    _updateCameraTransform();
+  }
+  
+  /// Actualiza la transformación de la cámara con rotación y posición
+  void _updateCameraTransform() {
+    if (!_autoFollowEnabled) return;
+    
+    final markerPos = _calculateMarkerPosition();
+    if (markerPos == null) return;
+    
+    final context = this.context;
+    if (!context.mounted) return;
+    final screenSize = MediaQuery.of(context).size;
+    
+    final svgSize = widget.floor == 1 
+        ? const Size(2808, 1416)
+        : const Size(2117, 1729);
+    
+    final scaleX = screenSize.width / svgSize.width;
+    final scaleY = screenSize.height / svgSize.height;
+    final svgToScreenScale = scaleX < scaleY ? scaleX : scaleY;
+    
+    final scaledWidth = svgSize.width * svgToScreenScale;
+    final scaledHeight = svgSize.height * svgToScreenScale;
+    final offsetX = (screenSize.width - scaledWidth) / 2;
+    final offsetY = (screenSize.height - scaledHeight) / 2;
+    
+    final markerScreenX = offsetX + markerPos.dx * svgToScreenScale;
+    final markerScreenY = offsetY + markerPos.dy * svgToScreenScale;
+    
+    // Mantener el zoom actual
+    double currentScale = _scale > 1.0 ? _scale : 1.0;
+    
+    final centerX = screenSize.width / 2;
+    final centerY = screenSize.height / 2;
+    
+    final translateToOrigin = Matrix4.identity()..translate(-markerScreenX, -markerScreenY);
+    final rotation = Matrix4.rotationZ(_cameraRotation);
+    final scale = Matrix4.identity()..scale(currentScale);
+    final translateToCenter = Matrix4.identity()..translate(centerX, centerY);
+    
+    final matrix = translateToCenter * scale * rotation * translateToOrigin;
+    
+    _transformationController.value = matrix;
+  }
+  
+  /// Sigue al marcador moviendo la cámara
+  void _followMarker() {
+    if (!_autoFollowEnabled) return;
+    if (!_initialZoomDone) return;
+    
+    final markerPos = _calculateMarkerPosition();
+    if (markerPos == null) return;
+    
+    // Detectar si el marcador se movió
+    if (_lastMarkerPosition != null) {
+      final distance = (markerPos - _lastMarkerPosition!).distance;
+      if (distance < 2.0) return;
+    }
+    _lastMarkerPosition = markerPos;
+    
+    // Actualizar rotación si llegamos a un nodo nuevo
+    if (_lastRotationNodeIndex != _currentNodeIndex) {
+      _updateCameraRotation();
+    }
+    
+    // Actualizar la transformación de la cámara
+    _updateCameraTransform();
   }
 
   /// Calcula la posición final del marcador proyectando sobre la ruta
@@ -400,6 +606,20 @@ class _MapCanvasState extends State<MapCanvas> {
           panEnabled: true,
           scaleEnabled: true,
           boundaryMargin: const EdgeInsets.all(double.infinity),
+          onInteractionStart: (details) {
+            if (mounted) {
+              setState(() {
+                _hasUserInteracted = true; // Bloquear seguimiento automático
+              });
+            }
+          },
+          onInteractionEnd: (details) {
+            if (mounted) {
+              setState(() {
+                _hasUserInteracted = false; // Reactivar seguimiento automático
+              });
+            }
+          },
           child: SizedBox(
             width: double.infinity,
             height: double.infinity,

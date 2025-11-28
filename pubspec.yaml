@@ -61,6 +61,9 @@ dependencies:
   # Para parsear XML/SVG
   xml: ^6.4.2
 
+  # Mapbox Maps
+  mapbox_maps_flutter: ^2.12.0
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -93,6 +96,7 @@ flutter:
     - assets/senatilogo.png
     - assets/mapas/
     - assets/fotos/
+    - assets/mapbox_data/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

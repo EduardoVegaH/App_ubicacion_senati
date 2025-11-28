@@ -27,6 +27,7 @@ class CheckCoursesAttendanceUseCase {
     required StudentEntity student,
     required Map<String, DateTime?> courseFirstEntryTime,
     required Map<String, AttendanceStatus> currentAttendanceStatus,
+    String? campusStatus, // Estado del campus (dentro/fuera)
   }) async {
     if (student.coursesToday.isEmpty) {
       return currentAttendanceStatus;
@@ -37,26 +38,30 @@ class CheckCoursesAttendanceUseCase {
       final updatedStatus = Map<String, AttendanceStatus>.from(currentAttendanceStatus);
 
       for (var course in student.coursesToday) {
-        final statusInfo = _getCourseStatusUseCase.call(course);
-        final isActive = statusInfo.status == CourseStatus.inProgress ||
-            statusInfo.status == CourseStatus.late ||
-            (statusInfo.status == CourseStatus.finished &&
-                courseFirstEntryTime[course.name] != null);
-
-        if (isActive || statusInfo.status == CourseStatus.soon) {
-          final attendanceStatus = _validateAttendanceUseCase.call(
-            course: course,
-            currentLocation: location,
-            courseFirstEntryTime: courseFirstEntryTime,
-            courseAttendanceStatus: currentAttendanceStatus,
-          );
+        // Validar asistencia para todos los cursos
+        final attendanceStatus = _validateAttendanceUseCase.call(
+          course: course,
+          currentLocation: location,
+          courseFirstEntryTime: courseFirstEntryTime,
+          courseAttendanceStatus: currentAttendanceStatus,
+          campusStatus: campusStatus ?? 'dentro', // Usar el campusStatus pasado o 'dentro' por defecto
+        );
+        
+        // Si retorna null, significa que el curso aún no ha comenzado (solo para Redes antes de las 7:15)
+        // En ese caso, no actualizamos el estado para que se muestre el mensaje especial
+        if (attendanceStatus != null) {
           updatedStatus[course.name] = attendanceStatus;
         }
+        // Si es null, no establecemos nada en updatedStatus, y el CourseCard mostrará el mensaje especial
       }
 
       return updatedStatus;
     } catch (e) {
-      print('Error verificando asistencia de cursos: $e');
+      // No imprimir errores de timeout - el servicio ya maneja el fallback silenciosamente
+      // Solo imprimir errores críticos que no sean timeouts
+      if (!e.toString().contains('TimeoutException')) {
+        print('Error verificando asistencia de cursos: $e');
+      }
       return currentAttendanceStatus;
     }
   }

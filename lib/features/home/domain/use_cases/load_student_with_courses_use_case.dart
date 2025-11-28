@@ -84,7 +84,7 @@ class LoadStudentWithCoursesUseCase {
         classroomRadius: 10.0,
       ),
       CourseEntity(
-        name: 'DESARROLLO HUMANO',
+        name: 'COMEDOR',
         type: 'Clase',
         startTime: '3:40 PM',
         endTime: '5:00 PM',

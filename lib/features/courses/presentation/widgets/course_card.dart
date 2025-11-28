@@ -316,7 +316,24 @@ class _CourseCardState extends State<CourseCard> {
   }
 
   Widget _buildAttendanceStatusBadge() {
-    final attendanceStatus = widget.attendanceStatus ?? AttendanceStatus.absent;
+    // Caso especial: Redes de Computadoras antes de las 7:15 PM
+    if (widget.course.name.toUpperCase().contains('REDES DE COMPUTADORAS')) {
+      final now = DateTime.now();
+      final deadlineTime = _parseTime('7:15 PM');
+      if (deadlineTime != null && now.isBefore(deadlineTime)) {
+        // Mostrar mensaje especial antes de las 7:15 PM
+        return StatusBadge(
+          label: 'Comienza a las 7:15',
+          color: Colors.blue,
+          icon: Icons.schedule,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          borderRadius: 12,
+        );
+      }
+    }
+    
+    // Para todos los demás casos, usar el attendanceStatus o "Presente" por defecto
+    final attendanceStatus = widget.attendanceStatus ?? AttendanceStatus.present;
     final badgeInfo = _getAttendanceBadgeInfo(attendanceStatus);
 
     return StatusBadge(
@@ -326,6 +343,34 @@ class _CourseCardState extends State<CourseCard> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       borderRadius: 12,
     );
+  }
+  
+  /// Parsea tiempo de formato "7:00 AM" a DateTime
+  DateTime? _parseTime(String timeStr) {
+    try {
+      final now = DateTime.now();
+      final parts = timeStr.trim().split(' ');
+      if (parts.length != 2) return null;
+
+      final timePart = parts[0];
+      final amPm = parts[1].toUpperCase();
+
+      final timeParts = timePart.split(':');
+      if (timeParts.length != 2) return null;
+
+      int hour = int.parse(timeParts[0]);
+      final minute = int.parse(timeParts[1]);
+
+      if (amPm == 'PM' && hour != 12) {
+        hour += 12;
+      } else if (amPm == 'AM' && hour == 12) {
+        hour = 0;
+      }
+
+      return DateTime(now.year, now.month, now.day, hour, minute);
+    } catch (e) {
+      return null;
+    }
   }
 
   Widget _buildCourseStatusBadge(CourseStatusInfo statusInfo, bool isLargePhone, bool isTablet) {

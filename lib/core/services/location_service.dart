@@ -40,14 +40,19 @@ class LocationService {
       );
     } on TimeoutException {
       // Si hay timeout, usar última ubicación conocida como fallback
+      // NO imprimir error aquí, solo usar fallback silenciosamente
       final lastPosition = await Geolocator.getLastKnownPosition();
       if (lastPosition != null) {
-        // Verificar que la última ubicación no sea muy antigua (máximo 30 segundos)
+        // Aumentar tolerancia de edad (máximo 5 minutos = 300 segundos)
+        // Esto evita errores cuando el GPS tarda pero hay una ubicación reciente
         final age = DateTime.now().difference(lastPosition.timestamp);
-        if (age.inSeconds < 30) {
+        if (age.inSeconds < 300) {
+          // Usar última ubicación conocida sin imprimir error
           return lastPosition;
         }
       }
+      // Solo relanzar si realmente no hay ubicación disponible
+      // Pero no imprimir aquí, dejar que el caller maneje el error
       rethrow;
     }
   }

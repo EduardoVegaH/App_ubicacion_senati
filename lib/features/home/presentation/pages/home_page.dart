@@ -5,6 +5,7 @@ import '../../../../../app/styles/text_styles.dart';
 import '../../../../../app/styles/app_spacing.dart';
 import '../../../../core/widgets/floating_chatbot/floating_chatbot.dart';
 import '../../../../core/widgets/empty_states/index.dart';
+import '../../../../core/widgets/primary_button/primary_button.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../features/auth/presentation/pages/login_page.dart';
 import '../../domain/index.dart';
@@ -16,6 +17,9 @@ import '../../../bathrooms/presentation/pages/bathroom_status_page.dart';
 import '../../../friends/presentation/pages/friends_page.dart';
 import '../../../chatbot/presentation/pages/chatbot_page.dart';
 import '../../../courses/presentation/pages/courses_list_page.dart';
+import '../../../navigation/presentation/pages/mapbox_map_page.dart';
+import '../../../identification/presentation/pages/identification_page.dart';
+import '../../../notes/presentation/pages/notes_page.dart';
 import '../../data/models/student_model.dart';
 import '../widgets/academic_status_block.dart';
 import '../widgets/section_header.dart';
@@ -79,8 +83,19 @@ class _HomePageState extends State<HomePage> {
       if (!mounted) return;
       
       if (student != null) {
+        // Inicializar todos los cursos como "Presente" por defecto
+        // (excepto Redes de Computadoras que se manejará después de las 7:15 PM)
+        final initialStatus = <String, AttendanceStatus>{};
+        for (var course in student.coursesToday) {
+          // No inicializar Redes de Computadoras, se manejará dinámicamente
+          if (!course.name.toUpperCase().contains('REDES DE COMPUTADORAS')) {
+            initialStatus[course.name] = AttendanceStatus.present;
+          }
+        }
+        
         setState(() {
           _student = student;
+          _courseAttendanceStatus = initialStatus;
           _loading = false;
         });
 
@@ -147,6 +162,7 @@ class _HomePageState extends State<HomePage> {
         student: _student!,
         courseFirstEntryTime: _courseFirstEntryTime,
         currentAttendanceStatus: _courseAttendanceStatus,
+        campusStatus: _campusStatus, // Pasar el estado del campus
       );
 
       if (mounted) {
@@ -383,6 +399,13 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                   );
                                 }),
+                              // Tarjeta del Mapa SENATI (Mapbox)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: isLargePhone ? 18 : (isTablet ? 20 : AppSpacing.spacingL),
+                                ),
+                                child: _buildMapboxCard(isLargePhone, isTablet),
+                              ),
                               // Información adicional
                               Padding(
                                 padding: EdgeInsets.only(
@@ -505,6 +528,34 @@ class _HomePageState extends State<HomePage> {
           );
         },
       ),
+      // Botón Notas
+      DrawerMenuItem(
+        icon: Icons.note,
+        title: 'Notas',
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const NotesPage(),
+            ),
+          );
+        },
+      ),
+      // Botón Identificación
+      DrawerMenuItem(
+        icon: Icons.badge,
+        title: 'Identificación',
+        onTap: () {
+          Navigator.pop(context);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const IdentificationPage(),
+            ),
+          );
+        },
+      ),
       // Botón Cerrar Sesión
       DrawerMenuItem(
         icon: Icons.logout,
@@ -517,5 +568,105 @@ class _HomePageState extends State<HomePage> {
         isLogout: true,
       ),
     ];
+  }
+
+  /// Construye la tarjeta del Mapa SENATI (Mapbox)
+  Widget _buildMapboxCard(bool isLargePhone, bool isTablet) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(
+          color: AppStyles.greyLight,
+          width: 1,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: AppSpacing.cardPaddingLarge(isLargePhone, isTablet),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Título
+          Text(
+            'Mapa SENATI',
+            style: AppTextStyles.titleSmall(isLargePhone, isTablet),
+          ),
+          SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+          // Descripción
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.map,
+                size: isLargePhone ? 21 : (isTablet ? 22 : 20),
+                color: AppStyles.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Mapa Interactivo',
+                      style: AppTextStyles.courseCardLabel(isLargePhone, isTablet),
+                    ),
+                    Text(
+                      'Explora el campus con el mapa interactivo de Mapbox',
+                      style: AppTextStyles.courseCardValue(isLargePhone, isTablet),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+          // Ubicación
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.location_on,
+                size: isLargePhone ? 21 : (isTablet ? 22 : 20),
+                color: AppStyles.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ubicación',
+                      style: AppTextStyles.courseCardLabel(isLargePhone, isTablet),
+                    ),
+                    Text(
+                      'Campus SENATI',
+                      style: AppTextStyles.courseCardValue(isLargePhone, isTablet),
+                    ),
+                    Text(
+                      'Mapa completo del campus con rutas y salones',
+                      style: AppTextStyles.courseCardSmall(isLargePhone, isTablet),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: isLargePhone ? 18 : (isTablet ? 20 : 16)),
+          // Botón Ver Mapa
+          PrimaryButton(
+            label: 'Ver Mapa Interactivo',
+            icon: Icons.map,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MapboxMapPage(),
+                ),
+              );
+            },
+            variant: PrimaryButtonVariant.primary,
+          ),
+        ],
+      ),
+    );
   }
 }
